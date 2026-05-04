@@ -14,6 +14,7 @@ export default {
     },
     ios: {
       supportsTablet: true,
+      bundleIdentifier: 'com.kunalbhatt777.hisaber',
     },
     android: {
       package: 'com.kunalbhatt777.hisaber',
