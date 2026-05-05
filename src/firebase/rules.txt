@@ -1,0 +1,90 @@
+// ─── Firestore Rules ──────────────────────────────────────────────────────────
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && (
+        // Full access to own doc
+        request.auth.uid == userId
+        ||
+        // Send friend request: add self to another user's incomingRequests
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['incomingRequests'])
+         && request.resource.data.incomingRequests.toSet()
+              .difference(resource.data.incomingRequests.toSet())
+              .hasOnly([request.auth.uid]))
+        ||
+        // Accept/remove friend: add self to another user's friendIds
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds'])
+         && request.resource.data.friendIds.toSet()
+              .difference(resource.data.friendIds.toSet())
+              .hasOnly([request.auth.uid]))
+        ||
+        // Remove friend: remove self from another user's friendIds
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds'])
+         && resource.data.friendIds.toSet()
+              .difference(request.resource.data.friendIds.toSet())
+              .hasOnly([request.auth.uid]))
+        ||
+        // Accept/decline: remove self from another user's outgoingRequests
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['outgoingRequests'])
+         && resource.data.outgoingRequests.toSet()
+              .difference(request.resource.data.outgoingRequests.toSet())
+              .hasOnly([request.auth.uid]))
+        ||
+        // Add or remove self from another user's incomingRequests (send or cancel request)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['incomingRequests'])
+         && (request.resource.data.incomingRequests.toSet()
+                .difference(resource.data.incomingRequests.toSet())
+                .hasOnly([request.auth.uid])
+             || resource.data.incomingRequests.toSet()
+                .difference(request.resource.data.incomingRequests.toSet())
+                .hasOnly([request.auth.uid])))
+        ||
+        // Accept: add self to friendIds AND remove self from outgoingRequests together
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds', 'outgoingRequests'])
+         && request.resource.data.friendIds.toSet()
+              .difference(resource.data.friendIds.toSet())
+              .hasOnly([request.auth.uid])
+         && resource.data.outgoingRequests.toSet()
+              .difference(request.resource.data.outgoingRequests.toSet())
+              .hasOnly([request.auth.uid]))
+      );
+    }
+
+    match /groups/{groupId} {
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.memberIds;
+      allow create: if request.auth != null
+        && request.auth.uid in request.resource.data.memberIds;
+      allow update, delete: if request.auth != null
+        && request.auth.uid in resource.data.memberIds;
+
+      match /expenses/{expenseId} {
+        allow read, write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+      }
+    }
+  }
+}
+
+
+// ─── Firebase Storage Rules ───────────────────────────────────────────────────
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{uid}/profile.jpg {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+    match /groups/{groupId}/thumbnail.jpg {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}

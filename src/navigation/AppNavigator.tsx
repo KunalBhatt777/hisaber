@@ -1,58 +1,25 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerContentComponentProps } from '@react-navigation/drawer';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { DrawerActions, useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 import { useAppTheme } from '../theme';
-import { DrawerParamList, HomeStackParamList } from '../types';
+import { AuthStackParamList, TabParamList, HomeStackParamList } from '../types';
+import { auth } from '../firebase/config';
 
 import HomeScreen from '../screens/HomeScreen';
-import SheetScreen from '../screens/SheetScreen';
-import SheetSettingsScreen from '../screens/SheetSettingsScreen';
+import GroupScreen from '../screens/GroupScreen';
+import GroupSettingsScreen from '../screens/GroupSettingsScreen';
+import GroupSummaryScreen from '../screens/GroupSummaryScreen';
 import AddItemScreen from '../screens/AddItemScreen';
 import ItemDetailScreen from '../screens/ItemDetailScreen';
-import AppSettingsScreen from '../screens/AppSettingsScreen';
-
-// ─── Drawer hamburger button (reusable) ──────────────────────────────────────
-
-export function DrawerToggleButton() {
-  const navigation = useNavigation();
-  const colors = useAppTheme();
-  return (
-    <TouchableOpacity
-      onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
-      style={styles.drawerBtn}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-    >
-      <View style={[styles.line, { backgroundColor: colors.text }]} />
-      <View style={[styles.line, { backgroundColor: colors.text }]} />
-      <View style={[styles.line, { backgroundColor: colors.text }]} />
-    </TouchableOpacity>
-  );
-}
-
-// ─── Custom Drawer Content ────────────────────────────────────────────────────
-
-function CustomDrawerContent(props: DrawerContentComponentProps) {
-  const colors = useAppTheme();
-  return (
-    <DrawerContentScrollView
-      {...props}
-      style={{ backgroundColor: colors.surface }}
-    >
-      <View style={[styles.drawerHeader, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.drawerTitle, { color: colors.primary }]}>
-          Hisaber
-        </Text>
-        <Text style={[styles.drawerSubtitle, { color: colors.textSecondary }]}>
-          Expense Tracker
-        </Text>
-      </View>
-      <DrawerItemList {...props} />
-    </DrawerContentScrollView>
-  );
-}
+import FriendsScreen from '../screens/FriendsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import BudgetingScreen from '../screens/BudgetingScreen';
+import LoginScreen from '../screens/LoginScreen';
+import SignupScreen from '../screens/SignupScreen';
 
 // ─── Home Stack ───────────────────────────────────────────────────────────────
 
@@ -70,105 +37,100 @@ function HomeStack() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
+      <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{ headerShown: false }}
+        name="Group"
+        component={GroupScreen}
+        options={({ route }) => ({ title: route.params.groupName, headerShown: false })}
       />
-      <Stack.Screen
-        name="Sheet"
-        component={SheetScreen}
-        options={({ route }) => ({ title: route.params.sheetName })}
-      />
-      <Stack.Screen
-        name="SheetSettings"
-        component={SheetSettingsScreen}
-        options={{ title: 'Sheet Settings' }}
-      />
-      <Stack.Screen
-        name="ItemDetail"
-        component={ItemDetailScreen}
-        options={({ route }) => ({ title: route.params.itemName })}
-      />
-      <Stack.Screen
-        name="AddItem"
-        component={AddItemScreen}
-        options={{
-          presentation: 'modal',
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen name="GroupSettings" component={GroupSettingsScreen} options={{ title: 'Group Settings' }} />
+      <Stack.Screen name="GroupSummary" component={GroupSummaryScreen} options={{ title: 'Summary', headerShown: false }} />
+      <Stack.Screen name="ItemDetail" component={ItemDetailScreen} options={({ route }) => ({ title: route.params.itemName })} />
+      <Stack.Screen name="AddItem" component={AddItemScreen} options={{ presentation: 'modal', headerShown: false }} />
     </Stack.Navigator>
   );
 }
 
-// ─── Root Drawer Navigator ────────────────────────────────────────────────────
+// ─── Bottom Tab Navigator (authenticated) ─────────────────────────────────────
 
-const Drawer = createDrawerNavigator<DrawerParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
+
+function AppTabs() {
+  const colors = useAppTheme();
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarIcon: ({ focused, color, size }) => {
+          const icons: Record<string, { active: string; inactive: string }> = {
+            HomeStack: { active: 'layers',  inactive: 'layers-outline' },
+            Friends:   { active: 'people',  inactive: 'people-outline' },
+            Budgeting: { active: 'wallet',  inactive: 'wallet-outline' },
+            Profile:   { active: 'person',  inactive: 'person-outline' },
+          };
+          const set = icons[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
+          return (
+            <Ionicons name={(focused ? set.active : set.inactive) as any} size={size} color={color} />
+          );
+        },
+      })}
+    >
+      <Tab.Screen name="HomeStack" component={HomeStack} options={{ title: 'Groups' }} />
+      <Tab.Screen name="Friends" component={FriendsScreen} />
+      <Tab.Screen name="Budgeting" component={BudgetingScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
+
+// ─── Auth Stack (unauthenticated) ─────────────────────────────────────────────
+
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+
+function AuthNavigator() {
+  const colors = useAppTheme();
+  return (
+    <AuthStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Signup" component={SignupScreen} />
+    </AuthStack.Navigator>
+  );
+}
+
+// ─── Root Navigator (auth-gated) ──────────────────────────────────────────────
 
 export default function AppNavigator() {
   const colors = useAppTheme();
-  const colorScheme = useColorScheme();
+  const [user, setUser] = useState<User | null | undefined>(undefined);
 
-  return (
-    <Drawer.Navigator
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
-      screenOptions={{
-        headerShown: false,
-        drawerType: 'slide',
-        drawerStyle: {
-          backgroundColor: colors.surface,
-          width: 260,
-        },
-        drawerActiveTintColor: colors.primary,
-        drawerInactiveTintColor: colors.textSecondary,
-        drawerLabelStyle: { fontSize: 15, fontWeight: '500' },
-        overlayColor:
-          colorScheme === 'dark'
-            ? 'rgba(0,0,0,0.6)'
-            : 'rgba(0,0,0,0.3)',
-      }}
-    >
-      <Drawer.Screen
-        name="HomeStack"
-        component={HomeStack}
-        options={{ title: 'Home' }}
-      />
-      <Drawer.Screen
-        name="AppSettings"
-        component={AppSettingsScreen}
-        options={{ title: 'Settings', headerShown: true, headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text }}
-      />
-    </Drawer.Navigator>
-  );
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return unsub;
+  }, []);
+
+  if (user === undefined) {
+    return (
+      <View style={[styles.splash, { backgroundColor: colors.background }]}>
+        <Text style={[styles.splashTitle, { color: colors.primary }]}>Centsible</Text>
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
+      </View>
+    );
+  }
+
+  return user ? <AppTabs /> : <AuthNavigator />;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  drawerBtn: {
-    padding: 4,
-    gap: 5,
-    justifyContent: 'center',
-  },
-  line: {
-    width: 22,
-    height: 2,
-    borderRadius: 1,
-  },
-  drawerHeader: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    marginBottom: 8,
-  },
-  drawerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  drawerSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
+  splash: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  splashTitle: { fontSize: 40, fontWeight: '800', letterSpacing: -1 },
 });

@@ -1,5 +1,5 @@
 {
-  "name": "hisaberapp",
+  "name": "centsibleapp",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -15,16 +15,24 @@
     "build:ios:prod": "npx --yes eas-cli@latest build -p ios --profile production --clear-cache"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "~2.1.2",
+    "@react-navigation/bottom-tabs": "^7.15.11",
     "@react-navigation/drawer": "^7.9.4",
     "@react-navigation/native": "^7.1.33",
     "@react-navigation/native-stack": "^7.14.4",
     "expo": "~55.0.5",
+    "expo-auth-session": "~55.0.15",
+    "expo-blur": "~55.0.14",
+    "expo-crypto": "~55.0.14",
     "expo-dev-client": "~55.0.13",
     "expo-file-system": "~55.0.10",
+    "expo-image-picker": "~55.0.19",
     "expo-print": "~55.0.8",
     "expo-sharing": "~55.0.11",
     "expo-sqlite": "~55.0.10",
     "expo-status-bar": "~55.0.4",
+    "expo-web-browser": "~55.0.14",
+    "firebase": "^12.12.1",
     "react": "19.2.0",
     "react-native": "0.83.2",
     "react-native-gesture-handler": "~2.30.0",

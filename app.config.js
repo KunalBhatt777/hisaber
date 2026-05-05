@@ -1,7 +1,7 @@
 export default {
   expo: {
-    name: 'Hisaber',
-    slug: 'hisaber',
+    name: 'Centsible',
+    slug: 'centsible',
     version: '1.0.0',
     orientation: 'portrait',
     owner:'kunalbhatt777',
@@ -14,10 +14,10 @@ export default {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.kunalbhatt777.hisaber',
+      bundleIdentifier: 'com.kunalbhatt777.centsible',
     },
     android: {
-      package: 'com.kunalbhatt777.hisaber',
+      package: 'com.kunalbhatt777.centsible',
       adaptiveIcon: {
         backgroundColor: '#E6F4FE',
         foregroundImage: './assets/android-icon-foreground.png',
@@ -32,7 +32,7 @@ export default {
     plugins: ['expo-sqlite', 'expo-sharing'],
     extra: {
       eas: {
-        projectId: 'a3bef68b-bf78-43be-a2ae-22a33ee7302b',
+        projectId: '058367e4-367d-422e-85b6-1dbd65e0f624',
       },
     },
   },

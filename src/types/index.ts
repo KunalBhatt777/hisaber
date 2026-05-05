@@ -1,16 +1,25 @@
 // ─── Navigation Param Lists ───────────────────────────────────────────────────
 
-export type DrawerParamList = {
+export type AuthStackParamList = {
+  Login: undefined;
+  Signup: undefined;
+};
+
+export type TabParamList = {
   HomeStack: undefined;
-  AppSettings: undefined;
+  Friends: undefined;
+  Budgeting: undefined;
+  Profile: undefined;
 };
 
 export type HomeStackParamList = {
   Home: undefined;
-  Sheet: { sheetId: number; sheetName: string };
-  SheetSettings: { sheetId: number };
-  ItemDetail: { expenseId: number; itemName: string };
-  AddItem: { sheetId: number; expenseId?: number };
+  Group: { groupId: string; groupName: string };
+  GroupSettings: { groupId: string };
+  GroupSummary: { groupId: string };
+  ItemDetail: { groupId: string; expenseId: string; itemName: string };
+  AddItem: { groupId: string; expenseId?: string };
+
 };
 
 // ─── Data Models ─────────────────────────────────────────────────────────────
@@ -61,3 +70,62 @@ export const TAX_OPTIONS = [
   { label: '10.25%', value: 10.25 },
   { label: 'Custom', value: -1 },
 ] as const;
+
+// ─── Firestore / Cloud Models ─────────────────────────────────────────────────
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  username: string;
+  phoneNumber: string;
+  friendIds: string[];
+  incomingRequests: string[];
+  outgoingRequests: string[];
+  createdAt: string;
+}
+
+export interface GroupMember {
+  uid: string;
+  displayName: string;
+  username: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  createdBy: string;
+  memberIds: string[];
+  members: Record<string, { displayName: string; username: string }>;
+  enabledTaxOptions: number[];
+  simplifyDebts: boolean;
+  createdAt: string;
+  // Computed client-side
+  expenseCount?: number;
+  total?: number;
+}
+
+export interface GroupExpense {
+  id: string;
+  groupId: string;
+  itemName: string;
+  rawPrice: number;
+  taxRate: number;
+  totalPrice: number;
+  quantity: number;
+  isLiquor: boolean;
+  liquorStateTax: number;
+  liquorCountyTax: number;
+  paidBy: string; // uid
+  splits: Record<string, { displayName: string; amount: number }>;
+  createdAt: string;
+}
+
+// Balance between two users
+export interface BalanceEntry {
+  fromUid: string;
+  fromName: string;
+  toUid: string;
+  toName: string;
+  amount: number;
+}
