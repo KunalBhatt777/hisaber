@@ -31,7 +31,6 @@ function GoogleSignInButton() {
 
   const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     iosClientId: '68897381471-71l5cehjp4t53nddjp3gtueugkaijas5.apps.googleusercontent.com',
-    androidClientId: '68897381471-st305spva6b0lq59ss35qfp4qkd2r3ua.apps.googleusercontent.com',
     webClientId: '68897381471-s4vud1783rasu674mca0j7l34ubf6ghs.apps.googleusercontent.com',
   });
 
@@ -146,12 +145,16 @@ export default function LoginScreen({ navigation }: { navigation: Nav }) {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[styles.dividerText, { color: colors.textSecondary }]}>or</Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          </View>
-          <GoogleSignInButton />
+          {Platform.OS === 'ios' && (
+            <>
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                <Text style={[styles.dividerText, { color: colors.textSecondary }]}>or</Text>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              </View>
+              <GoogleSignInButton />
+            </>
+          )}
 
           <TouchableOpacity
             style={styles.switchRow}
