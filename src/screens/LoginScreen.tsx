@@ -25,17 +25,15 @@ WebBrowser.maybeCompleteAuthSession();
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
-export default function LoginScreen({ navigation }: { navigation: Nav }) {
+// Google auth hook throws on Android when androidClientId is missing, so it lives
+// in this iOS-only component. Render it conditionally with Platform.OS check.
+function GoogleSignInButton() {
   const colors = useAppTheme();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     iosClientId: '68897381471-71l5cehjp4t53nddjp3gtueugkaijas5.apps.googleusercontent.com',
     webClientId: '68897381471-s4vud1783rasu674mca0j7l34ubf6ghs.apps.googleusercontent.com',
-    // androidClientId: 'REPLACE_WITH_ANDROID_CLIENT_ID', // uncomment after: eas credentials -p android → get SHA-1 → create Android OAuth client in Google Cloud Console
   });
 
   useEffect(() => {
@@ -53,9 +51,30 @@ export default function LoginScreen({ navigation }: { navigation: Nav }) {
     }
   }, [googleResponse]);
 
-  const handleGoogleSignIn = async () => {
-    await promptGoogleAsync();
-  };
+  return (
+    <TouchableOpacity
+      style={[styles.googleBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={() => promptGoogleAsync()}
+      disabled={googleLoading}
+      activeOpacity={0.85}
+    >
+      {googleLoading ? (
+        <ActivityIndicator color={colors.text} />
+      ) : (
+        <>
+          <Ionicons name="logo-google" size={20} color="#4285F4" />
+          <Text style={[styles.googleBtnText, { color: colors.text }]}>Continue with Google</Text>
+        </>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+export default function LoginScreen({ navigation }: { navigation: Nav }) {
+  const colors = useAppTheme();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     const e = email.trim();
@@ -128,27 +147,16 @@ export default function LoginScreen({ navigation }: { navigation: Nav }) {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[styles.dividerText, { color: colors.textSecondary }]}>or</Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.googleBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={handleGoogleSignIn}
-            disabled={googleLoading}
-            activeOpacity={0.85}
-          >
-            {googleLoading ? (
-              <ActivityIndicator color={colors.text} />
-            ) : (
-              <>
-                <Ionicons name="logo-google" size={20} color="#4285F4" />
-                <Text style={[styles.googleBtnText, { color: colors.text }]}>Continue with Google</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {Platform.OS === 'ios' && (
+            <>
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                <Text style={[styles.dividerText, { color: colors.textSecondary }]}>or</Text>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              </View>
+              <GoogleSignInButton />
+            </>
+          )}
 
           <TouchableOpacity
             style={styles.switchRow}
