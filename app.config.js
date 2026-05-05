@@ -5,12 +5,12 @@ export default {
     version: '1.0.0',
     orientation: 'portrait',
     owner:'kunalbhatt777',
-    icon: './assets/icon.png',
+    icon: './assets/CentsibleLogo.png',
     userInterfaceStyle: 'automatic',
     splash: {
-      image: './assets/splash-icon.png',
+      image: './assets/CentsibleLogo.png',
       resizeMode: 'contain',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#eaebfe',
     },
     ios: {
       supportsTablet: true,
@@ -19,15 +19,14 @@ export default {
     android: {
       package: 'com.kunalbhatt777.centsible',
       adaptiveIcon: {
-        backgroundColor: '#E6F4FE',
-        foregroundImage: './assets/android-icon-foreground.png',
-        backgroundImage: './assets/android-icon-background.png',
+        foregroundImage: './assets/CentsibleLogo.png',
+        backgroundColor: '#eaebfe',
         monochromeImage: './assets/android-icon-monochrome.png',
       },
       predictiveBackGestureEnabled: false,
     },
     web: {
-      favicon: './assets/favicon.png',
+      favicon: './assets/CentsibleLogo.png',
     },
     plugins: ['expo-sqlite', 'expo-sharing'],
     extra: {

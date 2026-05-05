@@ -11,6 +11,7 @@ import {
   Pressable,
   Animated,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -298,7 +299,14 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <Text style={[styles.appTitle, { color: colors.primary }]}>Centsible</Text>
+        <View style={styles.headerTop}>
+          <Image
+            source={require('../../assets/CentsibleLogo.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <Text style={[styles.appTitle, { color: colors.primary }]}>Centsible</Text>
+        </View>
         <Text style={[styles.greeting, { color: colors.text }]}>
           {userProfile ? `Welcome, ${userProfile.displayName.split(' ')[0]}` : 'Welcome'}
         </Text>
@@ -354,6 +362,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 16,
   },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerLogo: { width: 28, height: 28 },
   appTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' },
   greeting: { fontSize: 22, fontWeight: '700', marginTop: 2 },
   sectionLabel: {
