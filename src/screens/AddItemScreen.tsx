@@ -62,6 +62,7 @@ export default function AddItemScreen({ navigation, route }: Props) {
   const vm = useAddItemViewModel(navigation, groupId, expenseId);
 
   const taxOptions = [
+    { label: 'No Tax', value: 0 },
     ...vm.enabledTaxOptions.map((v) => ({ label: `${v}%`, value: v })),
     { label: 'Custom', value: -1 },
   ];

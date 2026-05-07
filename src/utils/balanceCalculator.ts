@@ -101,6 +101,18 @@ function rawBalances(
   return entries.sort((a, b) => b.amount - a.amount);
 }
 
+export function computeNetBetweenTwo(
+  expenses: GroupExpense[],
+  payments: GroupPayment[],
+  currentUid: string,
+  friendUid: string,
+): number {
+  const net = computeNetBalances(expenses, payments);
+  const iOwe = net.get(currentUid)?.get(friendUid) ?? 0;
+  const theyOwe = net.get(friendUid)?.get(currentUid) ?? 0;
+  return parseFloat((iOwe - theyOwe).toFixed(2));
+}
+
 export function calculateBalances(
   expenses: GroupExpense[],
   payments: GroupPayment[],

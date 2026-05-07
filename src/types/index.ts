@@ -142,3 +142,17 @@ export interface GroupPayment {
   createdBy: string;  // uid of who logged this payment
   createdAt: string;
 }
+
+// ─── Friend Balances ──────────────────────────────────────────────────────────
+
+export interface GroupBalance {
+  groupId: string;
+  groupName: string;
+  net: number; // positive = currentUser owes friend, negative = friend owes currentUser
+}
+
+export interface FriendWithBalance {
+  friend: UserProfile;
+  totalNet: number;     // same sign convention as GroupBalance.net
+  sharedGroups: GroupBalance[];
+}

@@ -91,7 +91,9 @@ export function useAddItemViewModel(
             setLiquorStateTax(expense.liquorStateTax > 0 ? String(expense.liquorStateTax) : '');
             setLiquorCountyTax(expense.liquorCountyTax > 0 ? String(expense.liquorCountyTax) : '');
           }
-          if (group.enabledTaxOptions.includes(expense.taxRate)) {
+          if (expense.taxRate === 0) {
+            setSelectedTax(0);
+          } else if (group.enabledTaxOptions.includes(expense.taxRate)) {
             setSelectedTax(expense.taxRate);
           } else {
             setSelectedTax(-1);

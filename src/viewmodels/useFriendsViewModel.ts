@@ -5,6 +5,9 @@ import {
   getFriends,
   getIncomingRequests,
   getOutgoingRequests,
+  getGroups,
+  getExpenses,
+  getPayments,
   searchUsers,
   sendFriendRequest,
   cancelFriendRequest,
@@ -12,16 +15,19 @@ import {
   declineFriendRequest,
   removeFriend,
 } from '../firebase/firestore';
-import { UserProfile } from '../types';
+import { UserProfile, FriendWithBalance, GroupBalance } from '../types';
+import { computeNetBetweenTwo } from '../utils/balanceCalculator';
 
 export interface FriendsViewModel {
   friends: UserProfile[];
+  friendsWithBalances: FriendWithBalance[];
   incomingRequests: UserProfile[];
   outgoingRequests: UserProfile[];
   searchResults: UserProfile[];
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   loading: boolean;
+  balancesLoading: boolean;
   searching: boolean;
   runSearch: () => Promise<void>;
   sendRequest: (toUid: string) => Promise<void>;
@@ -35,12 +41,55 @@ export interface FriendsViewModel {
 export function useFriendsViewModel(): FriendsViewModel {
   const uid = auth.currentUser?.uid ?? '';
   const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [friendsWithBalances, setFriendsWithBalances] = useState<FriendWithBalance[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<UserProfile[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<UserProfile[]>([]);
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [balancesLoading, setBalancesLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+
+  const loadBalances = useCallback(async (friendList: UserProfile[]) => {
+    if (!uid || !friendList.length) {
+      setFriendsWithBalances(friendList.map((f) => ({ friend: f, totalNet: 0, sharedGroups: [] })));
+      return;
+    }
+    setBalancesLoading(true);
+    try {
+      const groups = await getGroups(uid);
+
+      // Fetch expenses + payments for every group in parallel
+      const groupData = await Promise.all(
+        groups.map(async (g) => {
+          const [exps, pmts] = await Promise.all([getExpenses(g.id), getPayments(g.id)]);
+          return { group: g, expenses: exps, payments: pmts };
+        }),
+      );
+
+      const result: FriendWithBalance[] = friendList.map((friend) => {
+        const shared = groupData.filter((gd) => gd.group.memberIds.includes(friend.uid));
+
+        const sharedGroups: GroupBalance[] = shared
+          .map((gd) => ({
+            groupId: gd.group.id,
+            groupName: gd.group.name,
+            net: computeNetBetweenTwo(gd.expenses, gd.payments, uid, friend.uid),
+          }))
+          .filter((g) => Math.abs(g.net) > 0.005);
+
+        const totalNet = parseFloat(
+          sharedGroups.reduce((sum, g) => sum + g.net, 0).toFixed(2),
+        );
+
+        return { friend, totalNet, sharedGroups };
+      });
+
+      setFriendsWithBalances(result);
+    } finally {
+      setBalancesLoading(false);
+    }
+  }, [uid]);
 
   const refresh = useCallback(async () => {
     if (!uid) return;
@@ -54,10 +103,12 @@ export function useFriendsViewModel(): FriendsViewModel {
       setFriends(f);
       setIncomingRequests(r);
       setOutgoingRequests(o);
+      // Kick off balance load without blocking the friends list render
+      loadBalances(f);
     } finally {
       setLoading(false);
     }
-  }, [uid]);
+  }, [uid, loadBalances]);
 
   useFocusEffect(
     useCallback(() => {
@@ -71,7 +122,6 @@ export function useFriendsViewModel(): FriendsViewModel {
     setSearching(true);
     try {
       const results = await searchUsers(q);
-      // Exclude self
       setSearchResults(results.filter((u) => u.uid !== uid));
     } finally {
       setSearching(false);
@@ -107,12 +157,14 @@ export function useFriendsViewModel(): FriendsViewModel {
 
   return {
     friends,
+    friendsWithBalances,
     incomingRequests,
     outgoingRequests,
     searchResults,
     searchQuery,
     setSearchQuery,
     loading,
+    balancesLoading,
     searching,
     runSearch,
     sendRequest,
