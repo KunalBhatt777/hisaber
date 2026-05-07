@@ -1,5 +1,8 @@
 export default {
   expo: {
+    cli: {
+      appVersionSource: 'remote',
+    },
     name: 'Centsible',
     slug: 'centsible',
     version: '1.0.0',
@@ -15,6 +18,9 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.kunalbhatt777.centsible',
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
     android: {
       package: 'com.kunalbhatt777.centsible',
@@ -28,7 +34,7 @@ export default {
     web: {
       favicon: './assets/CentsibleLogo.png',
     },
-    plugins: ['expo-sqlite', 'expo-sharing'],
+    plugins: ['expo-sqlite', 'expo-sharing', '@react-native-community/datetimepicker'],
     extra: {
       eas: {
         projectId: '058367e4-367d-422e-85b6-1dbd65e0f624',

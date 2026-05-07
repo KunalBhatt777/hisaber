@@ -15,7 +15,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './config';
-import { Group, GroupExpense, UserProfile } from '../types';
+import { Group, GroupExpense, GroupPayment, UserProfile } from '../types';
 
 // ─── User ─────────────────────────────────────────────────────────────────────
 
@@ -243,11 +243,12 @@ export async function getExpense(
 
 export async function addExpense(
   groupId: string,
-  data: Omit<GroupExpense, 'id' | 'groupId' | 'createdAt'>,
+  data: Omit<GroupExpense, 'id' | 'groupId' | 'createdAt'> & { createdAt?: string },
 ): Promise<string> {
+  const { createdAt, ...rest } = data;
   const ref = await addDoc(collection(db, 'groups', groupId, 'expenses'), {
-    ...data,
-    createdAt: serverTimestamp(),
+    ...rest,
+    createdAt: createdAt ? Timestamp.fromDate(new Date(createdAt)) : serverTimestamp(),
   });
   return ref.id;
 }
@@ -255,13 +256,40 @@ export async function addExpense(
 export async function updateExpense(
   groupId: string,
   expenseId: string,
-  data: Omit<GroupExpense, 'id' | 'groupId' | 'createdAt'>,
+  data: Omit<GroupExpense, 'id' | 'groupId' | 'createdAt'> & { createdAt?: string },
 ) {
-  await updateDoc(doc(db, 'groups', groupId, 'expenses', expenseId), data);
+  const { createdAt, ...rest } = data;
+  await updateDoc(doc(db, 'groups', groupId, 'expenses', expenseId), {
+    ...rest,
+    ...(createdAt ? { createdAt: Timestamp.fromDate(new Date(createdAt)) } : {}),
+  });
 }
 
 export async function deleteExpense(groupId: string, expenseId: string) {
   await deleteDoc(doc(db, 'groups', groupId, 'expenses', expenseId));
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+export async function getPayments(groupId: string): Promise<GroupPayment[]> {
+  const q = query(
+    collection(db, 'groups', groupId, 'payments'),
+    orderBy('createdAt', 'desc'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => firestoreDocToPayment(d.id, groupId, d.data()));
+}
+
+export async function addPayment(
+  groupId: string,
+  data: Omit<GroupPayment, 'id' | 'groupId' | 'createdAt'> & { createdAt?: string },
+): Promise<string> {
+  const { createdAt, ...rest } = data;
+  const ref = await addDoc(collection(db, 'groups', groupId, 'payments'), {
+    ...rest,
+    createdAt: createdAt ? Timestamp.fromDate(new Date(createdAt)) : serverTimestamp(),
+  });
+  return ref.id;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -275,6 +303,28 @@ function firestoreDocToGroup(id: string, data: Record<string, unknown>): Group {
     members: (data.members ?? {}) as Group['members'],
     enabledTaxOptions: (data.enabledTaxOptions as number[]) ?? [2.25, 3.25, 10.25],
     simplifyDebts: (data.simplifyDebts as boolean) ?? true,
+    createdAt:
+      data.createdAt instanceof Timestamp
+        ? data.createdAt.toDate().toISOString()
+        : String(data.createdAt ?? ''),
+  };
+}
+
+function firestoreDocToPayment(
+  id: string,
+  groupId: string,
+  data: Record<string, unknown>,
+): GroupPayment {
+  return {
+    id,
+    groupId,
+    paidBy: data.paidBy as string,
+    paidTo: data.paidTo as string,
+    paidByName: data.paidByName as string,
+    paidToName: data.paidToName as string,
+    amount: data.amount as number,
+    note: (data.note as string) ?? '',
+    createdBy: data.createdBy as string,
     createdAt:
       data.createdAt instanceof Timestamp
         ? data.createdAt.toDate().toISOString()

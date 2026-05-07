@@ -1,18 +1,24 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getExpenses, deleteExpense, getGroup } from '../firebase/firestore';
-import { Group, GroupExpense, HomeStackParamList } from '../types';
+import { getExpenses, deleteExpense, getGroup, getPayments, addPayment } from '../firebase/firestore';
+import { auth } from '../firebase/config';
+import { Group, GroupExpense, GroupPayment, HomeStackParamList } from '../types';
 import { exportGroupToExcel, exportGroupToPdf } from '../utils/groupExport';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'Group'>;
+export type GroupTab = 'expenses' | 'payments';
 
 export interface GroupViewModel {
   group: Group | null;
   expenses: GroupExpense[];
+  payments: GroupPayment[];
+  activeTab: GroupTab;
+  setActiveTab: (tab: GroupTab) => void;
   isExporting: boolean;
   shareModalVisible: boolean;
   removeExpense: (id: string) => Promise<void>;
+  submitPayment: (paidBy: string, paidTo: string, paidByName: string, paidToName: string, amount: number, note: string, createdAt?: string) => Promise<void>;
   openShareModal: () => void;
   closeShareModal: () => void;
   exportAsExcel: () => Promise<void>;
@@ -31,16 +37,20 @@ export function useGroupViewModel(
 ): GroupViewModel {
   const [group, setGroup] = useState<Group | null>(null);
   const [expenses, setExpenses] = useState<GroupExpense[]>([]);
+  const [payments, setPayments] = useState<GroupPayment[]>([]);
+  const [activeTab, setActiveTab] = useState<GroupTab>('expenses');
   const [isExporting, setIsExporting] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [g, exps] = await Promise.all([
+    const [g, exps, pmts] = await Promise.all([
       getGroup(groupId),
       getExpenses(groupId),
+      getPayments(groupId),
     ]);
     setGroup(g);
     setExpenses(exps);
+    setPayments(pmts);
   }, [groupId]);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
@@ -48,6 +58,23 @@ export function useGroupViewModel(
   const removeExpense = useCallback(
     async (id: string) => {
       await deleteExpense(groupId, id);
+      await refresh();
+    },
+    [groupId, refresh],
+  );
+
+  const submitPayment = useCallback(
+    async (
+      paidBy: string,
+      paidTo: string,
+      paidByName: string,
+      paidToName: string,
+      amount: number,
+      note: string,
+      createdAt?: string,
+    ) => {
+      const currentUid = auth.currentUser?.uid ?? '';
+      await addPayment(groupId, { paidBy, paidTo, paidByName, paidToName, amount, note, createdBy: currentUid, ...(createdAt ? { createdAt } : {}) });
       await refresh();
     },
     [groupId, refresh],
@@ -91,11 +118,7 @@ export function useGroupViewModel(
 
   const navigateToItemDetail = useCallback(
     (expense: GroupExpense) => {
-      navigation.navigate('ItemDetail', {
-        groupId,
-        expenseId: expense.id,
-        itemName: expense.itemName,
-      });
+      navigation.navigate('ItemDetail', { groupId, expenseId: expense.id, itemName: expense.itemName });
     },
     [navigation, groupId],
   );
@@ -111,9 +134,13 @@ export function useGroupViewModel(
   return {
     group,
     expenses,
+    payments,
+    activeTab,
+    setActiveTab,
     isExporting,
     shareModalVisible,
     removeExpense,
+    submitPayment,
     openShareModal,
     closeShareModal,
     exportAsExcel,

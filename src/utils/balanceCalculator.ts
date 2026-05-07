@@ -1,48 +1,53 @@
-import { BalanceEntry, GroupExpense } from '../types';
+import { BalanceEntry, GroupExpense, GroupPayment } from '../types';
 
-/**
- * Compute raw net balances from a list of expenses.
- * Returns a map: debtor_uid -> creditor_uid -> amount owed
- */
-function computeNetBalances(expenses: GroupExpense[]): Map<string, Map<string, number>> {
+function computeNetBalances(
+  expenses: GroupExpense[],
+  payments: GroupPayment[],
+): Map<string, Map<string, number>> {
   const net = new Map<string, Map<string, number>>();
 
-  const add = (debtor: string, creditor: string, amount: number) => {
-    if (debtor === creditor || amount <= 0) return;
-    if (!net.has(debtor)) net.set(debtor, new Map());
-    const inner = net.get(debtor)!;
-    inner.set(creditor, (inner.get(creditor) ?? 0) + amount);
+  const ensure = (uid: string) => {
+    if (!net.has(uid)) net.set(uid, new Map());
+    return net.get(uid)!;
   };
 
-  for (const expense of expenses) {
-    const { paidBy, splits, totalPrice } = expense;
-    const splitUids = Object.keys(splits);
-    if (!splitUids.length) continue;
-
-    const sharePerPerson = totalPrice / splitUids.length;
-
-    for (const uid of splitUids) {
+  // Build directional debt map from expenses
+  for (const { paidBy, splits, totalPrice } of expenses) {
+    const uids = Object.keys(splits);
+    if (!uids.length) continue;
+    const share = totalPrice / uids.length;
+    for (const uid of uids) {
       if (uid !== paidBy) {
-        add(uid, paidBy, sharePerPerson);
+        const row = ensure(uid);
+        row.set(paidBy, (row.get(paidBy) ?? 0) + share);
       }
+    }
+  }
+
+  // Apply payments: reduce paidBy → paidTo debt
+  for (const { paidBy, paidTo, amount } of payments) {
+    if (paidBy === paidTo || amount <= 0) continue;
+    const debtMap = ensure(paidBy);
+    const current = debtMap.get(paidTo) ?? 0;
+    const remaining = current - amount;
+    if (remaining >= -0.005) {
+      debtMap.set(paidTo, Math.max(0, remaining));
+    } else {
+      // Overpayment — paidTo now owes paidBy the excess
+      debtMap.set(paidTo, 0);
+      const toMap = ensure(paidTo);
+      toMap.set(paidBy, (toMap.get(paidBy) ?? 0) + (-remaining));
     }
   }
 
   return net;
 }
 
-/**
- * Simplify debts using a greedy min-transaction algorithm.
- * Computes the net position of each person and repeatedly settles
- * the largest debtor with the largest creditor.
- */
 function simplifyDebts(
   rawNet: Map<string, Map<string, number>>,
   memberNames: Record<string, string>,
 ): BalanceEntry[] {
-  // Compute net position per person: positive = owed money, negative = owes money
   const balance = new Map<string, number>();
-
   for (const [debtor, creditors] of rawNet) {
     for (const [creditor, amount] of creditors) {
       balance.set(debtor, (balance.get(debtor) ?? 0) - amount);
@@ -51,15 +56,12 @@ function simplifyDebts(
   }
 
   const entries: BalanceEntry[] = [];
-
-  // Greedily pair largest creditor with largest debtor
   const people = Array.from(balance.entries()).filter(([, v]) => Math.abs(v) > 0.005);
 
   while (people.length >= 2) {
     people.sort((a, b) => a[1] - b[1]);
-    const poorest = people[0]; // most negative = owes most
-    const richest = people[people.length - 1]; // most positive = owed most
-
+    const poorest = people[0];
+    const richest = people[people.length - 1];
     const amount = Math.min(-poorest[1], richest[1]);
     if (amount < 0.01) break;
 
@@ -73,24 +75,17 @@ function simplifyDebts(
 
     poorest[1] += amount;
     richest[1] -= amount;
-
-    // Remove settled people
-    const filtered = people.filter(([, v]) => Math.abs(v) > 0.005);
-    people.splice(0, people.length, ...filtered);
+    people.splice(0, people.length, ...people.filter(([, v]) => Math.abs(v) > 0.005));
   }
 
   return entries;
 }
 
-/**
- * Compute raw (unsimplified) balances as a flat list.
- */
 function rawBalances(
   rawNet: Map<string, Map<string, number>>,
   memberNames: Record<string, string>,
 ): BalanceEntry[] {
   const entries: BalanceEntry[] = [];
-
   for (const [debtor, creditors] of rawNet) {
     for (const [creditor, amount] of creditors) {
       if (amount < 0.01) continue;
@@ -103,21 +98,15 @@ function rawBalances(
       });
     }
   }
-
   return entries.sort((a, b) => b.amount - a.amount);
 }
 
-/**
- * Main entry: compute balances for a group.
- * @param expenses - All expenses in the group
- * @param members - uid → displayName map
- * @param simplify - Whether to use simplified or raw balances
- */
 export function calculateBalances(
   expenses: GroupExpense[],
+  payments: GroupPayment[],
   members: Record<string, string>,
   simplify: boolean,
 ): BalanceEntry[] {
-  const net = computeNetBalances(expenses);
+  const net = computeNetBalances(expenses, payments);
   return simplify ? simplifyDebts(net, members) : rawBalances(net, members);
 }

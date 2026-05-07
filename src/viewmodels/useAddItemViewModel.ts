@@ -21,6 +21,8 @@ export interface AddItemViewModel {
   members: GroupMember[];
   selectedMemberUids: Set<string>;
   paidByUid: string;
+  expenseDate: Date;
+  setExpenseDate: (d: Date) => void;
   // Computed
   quantityNum: number;
   effectiveTaxRate: number;
@@ -64,6 +66,7 @@ export function useAddItemViewModel(
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [selectedMemberUids, setSelectedMemberUids] = useState<Set<string>>(new Set());
   const [paidByUid, setPaidByUid] = useState(currentUid);
+  const [expenseDate, setExpenseDate] = useState<Date>(new Date());
 
   useEffect(() => {
     const load = async () => {
@@ -96,6 +99,7 @@ export function useAddItemViewModel(
           }
           setSelectedMemberUids(new Set(Object.keys(expense.splits)));
           setPaidByUid(expense.paidBy);
+          if (expense.createdAt) setExpenseDate(new Date(expense.createdAt));
         }
       } else {
         // Add mode: default select all members, current user pays
@@ -163,6 +167,7 @@ export function useAddItemViewModel(
       liquorCountyTax: liquorCountyTaxNum,
       paidBy: paidByUid,
       splits,
+      createdAt: expenseDate.toISOString(),
     };
 
     if (expenseId) {
@@ -174,7 +179,7 @@ export function useAddItemViewModel(
   }, [
     canSave, expenseId, groupId, itemName, rawPriceNum, effectiveTaxRate, totalPrice,
     splitCount, selectedMemberUids, members, quantityNum, isLiquor, liquorStateTaxNum,
-    liquorCountyTaxNum, paidByUid, navigation,
+    liquorCountyTaxNum, paidByUid, expenseDate, navigation,
   ]);
 
   const cancel = useCallback(() => navigation.goBack(), [navigation]);
@@ -182,9 +187,9 @@ export function useAddItemViewModel(
   return {
     isEditing: !!expenseId,
     itemName, rawPrice, quantity, selectedTax, customTax, enabledTaxOptions,
-    isLiquor, liquorStateTax, liquorCountyTax, members, selectedMemberUids, paidByUid,
+    isLiquor, liquorStateTax, liquorCountyTax, members, selectedMemberUids, paidByUid, expenseDate,
     quantityNum, effectiveTaxRate, taxAmount, liquorTaxAmount, totalPrice, splitCount, perPerson, canSave,
     setItemName, setRawPrice, setQuantity, selectTax, setCustomTax,
-    toggleLiquor, setLiquorStateTax, setLiquorCountyTax, toggleMember, setPaidByUid, save, cancel,
+    toggleLiquor, setLiquorStateTax, setLiquorCountyTax, toggleMember, setPaidByUid, setExpenseDate, save, cancel,
   };
 }

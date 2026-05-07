@@ -129,3 +129,16 @@ export interface BalanceEntry {
   toName: string;
   amount: number;
 }
+
+export interface GroupPayment {
+  id: string;
+  groupId: string;
+  paidBy: string;     // uid — who sent money
+  paidTo: string;     // uid — who received money
+  paidByName: string;
+  paidToName: string;
+  amount: number;
+  note: string;
+  createdBy: string;  // uid of who logged this payment
+  createdAt: string;
+}

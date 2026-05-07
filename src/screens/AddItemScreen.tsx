@@ -19,6 +19,7 @@ import { useAppTheme } from '../theme';
 import { useAddItemViewModel } from '../viewmodels/useAddItemViewModel';
 import { HomeStackParamList } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import DateTimeField from '../components/DateTimeField';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'AddItem'>;
@@ -115,6 +116,8 @@ export default function AddItemScreen({ navigation, route }: Props) {
               onChangeText={vm.setItemName}
               returnKeyType="next"
             />
+            <Divider />
+            <DateTimeField value={vm.expenseDate} onChange={vm.setExpenseDate} />
           </SectionCard>
 
           {/* ── Details ───────────────────────────────────────────────────── */}
