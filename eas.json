@@ -5,7 +5,11 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "GRADLE_OPTS": "-Xmx2048m -XX:MaxMetaspaceSize=512m",
+        "JAVA_OPTS": "-Xmx2048m"
+      }
     },
     "preview": {
       "distribution": "internal",
