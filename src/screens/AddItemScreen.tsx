@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -79,15 +80,21 @@ export default function AddItemScreen({ navigation, route }: Props) {
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             {vm.isEditing ? 'Edit Expense' : 'Add Expense'}
           </Text>
-          <TouchableOpacity onPress={vm.save} style={styles.headerSide} disabled={!vm.canSave}>
-            <Text style={[styles.headerSave, { color: vm.canSave ? colors.primary : colors.textSecondary }]}>
+          <TouchableOpacity onPress={vm.save} style={styles.headerSide} disabled={!vm.canSave || vm.loading}>
+            <Text style={[styles.headerSave, { color: vm.canSave && !vm.loading ? colors.primary : colors.textSecondary }]}>
               Save
             </Text>
           </TouchableOpacity>
         </View>
 
+        {vm.loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : null}
+
         <ScrollView
-          style={styles.scroll}
+          style={vm.loading ? { display: 'none' } : styles.scroll}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -358,6 +365,7 @@ function CalcRow({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   header: {
     flexDirection: 'row',

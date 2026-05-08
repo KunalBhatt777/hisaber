@@ -16,6 +16,7 @@ export interface GroupViewModel {
   payments: GroupPayment[];
   activeTab: GroupTab;
   setActiveTab: (tab: GroupTab) => void;
+  loading: boolean;
   isExporting: boolean;
   shareModalVisible: boolean;
   removeExpense: (id: string) => Promise<void>;
@@ -40,18 +41,24 @@ export function useGroupViewModel(
   const [expenses, setExpenses] = useState<GroupExpense[]>([]);
   const [payments, setPayments] = useState<GroupPayment[]>([]);
   const [activeTab, setActiveTab] = useState<GroupTab>('expenses');
+  const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [g, exps, pmts] = await Promise.all([
-      getGroup(groupId),
-      getExpenses(groupId),
-      getPayments(groupId),
-    ]);
-    setGroup(g);
-    setExpenses(exps);
-    setPayments(pmts);
+    setLoading(true);
+    try {
+      const [g, exps, pmts] = await Promise.all([
+        getGroup(groupId),
+        getExpenses(groupId),
+        getPayments(groupId),
+      ]);
+      setGroup(g);
+      setExpenses(exps);
+      setPayments(pmts);
+    } finally {
+      setLoading(false);
+    }
   }, [groupId]);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
@@ -158,6 +165,7 @@ export function useGroupViewModel(
     payments,
     activeTab,
     setActiveTab,
+    loading,
     isExporting,
     shareModalVisible,
     removeExpense,

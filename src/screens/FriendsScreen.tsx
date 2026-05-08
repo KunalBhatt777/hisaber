@@ -138,11 +138,13 @@ function ProfileModal({
   friend,
   onClose,
   onRemove,
+  actionLoading,
 }: {
   visible: boolean;
   friend: UserProfile | null;
   onClose: () => void;
   onRemove: () => void;
+  actionLoading: boolean;
 }) {
   const colors = useAppTheme();
   if (!friend) return null;
@@ -157,12 +159,15 @@ function ProfileModal({
           <Text style={[styles.profileHandle2, { color: colors.textSecondary }]}>@{friend.username}</Text>
 
           <TouchableOpacity
-            style={[styles.removeBtn, { borderColor: colors.danger }]}
+            style={[styles.removeBtn, { borderColor: actionLoading ? colors.border : colors.danger }]}
             onPress={() => { onRemove(); onClose(); }}
             activeOpacity={0.7}
+            disabled={actionLoading}
           >
-            <Ionicons name="person-remove-outline" size={16} color={colors.danger} />
-            <Text style={[styles.removeBtnText, { color: colors.danger }]}>Remove Friend</Text>
+            {actionLoading
+              ? <ActivityIndicator size="small" color={colors.danger} />
+              : <Ionicons name="person-remove-outline" size={16} color={colors.danger} />}
+            <Text style={[styles.removeBtnText, { color: actionLoading ? colors.border : colors.danger }]}>Remove Friend</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -239,10 +244,13 @@ export default function FriendsScreen() {
                         <Text style={[styles.tagText, { color: colors.textSecondary }]}>Requested</Text>
                       ) : (
                         <TouchableOpacity
-                          style={[styles.addBtn, { backgroundColor: colors.primary }]}
+                          style={[styles.addBtn, { backgroundColor: vm.actionLoading ? colors.border : colors.primary }]}
                           onPress={() => vm.sendRequest(user.uid)}
+                          disabled={vm.actionLoading}
                         >
-                          <Ionicons name="person-add-outline" size={16} color="#FFF" />
+                          {vm.actionLoading
+                            ? <ActivityIndicator size="small" color="#FFF" />
+                            : <Ionicons name="person-add-outline" size={16} color="#FFF" />}
                         </TouchableOpacity>
                       )
                     }
@@ -269,8 +277,11 @@ export default function FriendsScreen() {
                           onPress={() => vm.cancelRequest(user.uid)}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           style={{ marginLeft: 8 }}
+                          disabled={vm.actionLoading}
                         >
-                          <Ionicons name="close-circle" size={20} color={colors.danger} />
+                          {vm.actionLoading
+                            ? <ActivityIndicator size="small" color={colors.danger} />
+                            : <Ionicons name="close-circle" size={20} color={colors.danger} />}
                         </TouchableOpacity>
                       </View>
                     }
@@ -292,14 +303,18 @@ export default function FriendsScreen() {
                     action={
                       <View style={styles.requestActions}>
                         <TouchableOpacity
-                          style={[styles.iconBtn, { backgroundColor: colors.success }]}
+                          style={[styles.iconBtn, { backgroundColor: vm.actionLoading ? colors.border : colors.success }]}
                           onPress={() => vm.acceptRequest(user.uid)}
+                          disabled={vm.actionLoading}
                         >
-                          <Ionicons name="checkmark" size={16} color="#FFF" />
+                          {vm.actionLoading
+                            ? <ActivityIndicator size="small" color="#FFF" />
+                            : <Ionicons name="checkmark" size={16} color="#FFF" />}
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[styles.iconBtn, { backgroundColor: colors.danger }]}
+                          style={[styles.iconBtn, { backgroundColor: vm.actionLoading ? colors.border : colors.danger }]}
                           onPress={() => vm.declineRequest(user.uid)}
+                          disabled={vm.actionLoading}
                         >
                           <Ionicons name="close" size={16} color="#FFF" />
                         </TouchableOpacity>
@@ -358,6 +373,7 @@ export default function FriendsScreen() {
         friend={profileFriend}
         onClose={() => setProfileFriend(null)}
         onRemove={() => profileFriend && vm.removeFriendById(profileFriend.uid)}
+        actionLoading={vm.actionLoading}
       />
     </SafeAreaView>
   );

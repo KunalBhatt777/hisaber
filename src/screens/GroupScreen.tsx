@@ -376,12 +376,16 @@ export default function GroupScreen({ navigation, route }: Props) {
           data={vm.expenses}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>No expenses yet</Text>
-              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Tap + to add your first item</Text>
-            </View>
-          )}
+          ListEmptyComponent={() =>
+            vm.loading ? (
+              <ActivityIndicator color={colors.primary} style={{ marginTop: 48 }} />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>No expenses yet</Text>
+                <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Tap + to add your first item</Text>
+              </View>
+            )
+          }
           ListFooterComponent={
             vm.expenses.length > 0 ? (
               <View style={[styles.footer, { borderTopColor: colors.border }]}>
@@ -408,14 +412,18 @@ export default function GroupScreen({ navigation, route }: Props) {
           data={vm.payments}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>No payments yet</Text>
-              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                Tap + to record a payment between members
-              </Text>
-            </View>
-          )}
+          ListEmptyComponent={() =>
+            vm.loading ? (
+              <ActivityIndicator color={colors.primary} style={{ marginTop: 48 }} />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>No payments yet</Text>
+                <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                  Tap + to record a payment between members
+                </Text>
+              </View>
+            )
+          }
           renderItem={({ item }) => <PaymentRow payment={item} />}
         />
       )}

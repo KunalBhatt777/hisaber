@@ -117,12 +117,17 @@ export default function GroupSettingsScreen({ route }: Props) {
                       Minimize number of transactions in summary
                     </Text>
                   </View>
-                  <Switch
-                    value={vm.simplifyDebts}
-                    onValueChange={vm.toggleSimplifyDebts}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor="#FFFFFF"
-                  />
+                  {vm.saving ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Switch
+                      value={vm.simplifyDebts}
+                      onValueChange={vm.toggleSimplifyDebts}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor="#FFFFFF"
+                      disabled={vm.saving}
+                    />
+                  )}
                 </View>
               </View>
 
@@ -139,12 +144,12 @@ export default function GroupSettingsScreen({ route }: Props) {
                       <TouchableOpacity
                         onPress={() => confirmRemoveTax(value)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        disabled={vm.taxOptions.length <= 1}
+                        disabled={vm.taxOptions.length <= 1 || vm.saving}
                       >
                         <Ionicons
                           name="trash-outline"
                           size={18}
-                          color={vm.taxOptions.length <= 1 ? colors.border : colors.danger}
+                          color={vm.taxOptions.length <= 1 || vm.saving ? colors.border : colors.danger}
                         />
                       </TouchableOpacity>
                     </View>
@@ -167,10 +172,12 @@ export default function GroupSettingsScreen({ route }: Props) {
                   />
                   <TouchableOpacity
                     onPress={vm.addTaxOption}
-                    style={[styles.addTaxBtn, { backgroundColor: canAddTax ? colors.primary : colors.border }]}
-                    disabled={!canAddTax}
+                    style={[styles.addTaxBtn, { backgroundColor: canAddTax && !vm.saving ? colors.primary : colors.border }]}
+                    disabled={!canAddTax || vm.saving}
                   >
-                    <Ionicons name="add" size={20} color="#FFFFFF" />
+                    {vm.saving
+                      ? <ActivityIndicator size="small" color="#FFF" />
+                      : <Ionicons name="add" size={20} color="#FFFFFF" />}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -194,8 +201,9 @@ export default function GroupSettingsScreen({ route }: Props) {
                         <TouchableOpacity
                           onPress={() => confirmRemoveMember(uid, m.displayName)}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          disabled={vm.saving}
                         >
-                          <Ionicons name="remove-circle-outline" size={22} color={colors.danger} />
+                          <Ionicons name="remove-circle-outline" size={22} color={vm.saving ? colors.border : colors.danger} />
                         </TouchableOpacity>
                       ) : (
                         <Text style={[styles.youTag, { color: colors.primary }]}>You</Text>
@@ -222,10 +230,13 @@ export default function GroupSettingsScreen({ route }: Props) {
                             <Text style={[styles.memberHandle, { color: colors.textSecondary }]}>@{friend.username}</Text>
                           </View>
                           <TouchableOpacity
-                            style={[styles.addBtn, { backgroundColor: colors.primary }]}
+                            style={[styles.addBtn, { backgroundColor: vm.saving ? colors.border : colors.primary }]}
                             onPress={() => vm.addMember(friend.uid)}
+                            disabled={vm.saving}
                           >
-                            <Ionicons name="add" size={18} color="#FFF" />
+                            {vm.saving
+                              ? <ActivityIndicator size="small" color="#FFF" />
+                              : <Ionicons name="add" size={18} color="#FFF" />}
                           </TouchableOpacity>
                         </View>
                         {index < vm.friends.length - 1 && (

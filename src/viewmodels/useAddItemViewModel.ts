@@ -9,6 +9,7 @@ type Nav = NativeStackNavigationProp<HomeStackParamList, 'AddItem'>;
 
 export interface AddItemViewModel {
   isEditing: boolean;
+  loading: boolean;
   // Form state
   itemName: string;
   rawPrice: string;
@@ -69,48 +70,52 @@ export function useAddItemViewModel(
   const [paidByUid, setPaidByUid] = useState(currentUid);
   const [expenseDate, setExpenseDate] = useState<Date>(new Date());
   const [groupName, setGroupName] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const group = await getGroup(groupId);
-      if (!group) return;
+      setLoading(true);
+      try {
+        const group = await getGroup(groupId);
+        if (!group) return;
 
-      setGroupName(group.name);
-      const memberList: GroupMember[] = Object.entries(group.members).map(
-        ([uid, m]) => ({ uid, displayName: m.displayName, username: m.username }),
-      );
-      setMembers(memberList);
-      setEnabledTaxOptions(group.enabledTaxOptions);
+        setGroupName(group.name);
+        const memberList: GroupMember[] = Object.entries(group.members).map(
+          ([uid, m]) => ({ uid, displayName: m.displayName, username: m.username }),
+        );
+        setMembers(memberList);
+        setEnabledTaxOptions(group.enabledTaxOptions);
 
-      if (expenseId) {
-        // Edit mode
-        const expense = await getExpense(groupId, expenseId);
-        if (expense) {
-          setItemName(expense.itemName);
-          setRawPrice(String(expense.rawPrice));
-          setQuantity(String(expense.quantity));
-          setIsLiquor(expense.isLiquor);
-          if (expense.isLiquor) {
-            setLiquorStateTax(expense.liquorStateTax > 0 ? String(expense.liquorStateTax) : '');
-            setLiquorCountyTax(expense.liquorCountyTax > 0 ? String(expense.liquorCountyTax) : '');
+        if (expenseId) {
+          const expense = await getExpense(groupId, expenseId);
+          if (expense) {
+            setItemName(expense.itemName);
+            setRawPrice(String(expense.rawPrice));
+            setQuantity(String(expense.quantity));
+            setIsLiquor(expense.isLiquor);
+            if (expense.isLiquor) {
+              setLiquorStateTax(expense.liquorStateTax > 0 ? String(expense.liquorStateTax) : '');
+              setLiquorCountyTax(expense.liquorCountyTax > 0 ? String(expense.liquorCountyTax) : '');
+            }
+            if (expense.taxRate === 0) {
+              setSelectedTax(0);
+            } else if (group.enabledTaxOptions.includes(expense.taxRate)) {
+              setSelectedTax(expense.taxRate);
+            } else {
+              setSelectedTax(-1);
+              setCustomTax(String(expense.taxRate));
+            }
+            setSelectedMemberUids(new Set(Object.keys(expense.splits)));
+            setPaidByUid(expense.paidBy);
+            if (expense.createdAt) setExpenseDate(new Date(expense.createdAt));
           }
-          if (expense.taxRate === 0) {
-            setSelectedTax(0);
-          } else if (group.enabledTaxOptions.includes(expense.taxRate)) {
-            setSelectedTax(expense.taxRate);
-          } else {
-            setSelectedTax(-1);
-            setCustomTax(String(expense.taxRate));
-          }
-          setSelectedMemberUids(new Set(Object.keys(expense.splits)));
-          setPaidByUid(expense.paidBy);
-          if (expense.createdAt) setExpenseDate(new Date(expense.createdAt));
+        } else {
+          setSelectedMemberUids(new Set(memberList.map((m) => m.uid)));
+          setPaidByUid(currentUid);
+          setSelectedTax(group.enabledTaxOptions[0] ?? 2.25);
         }
-      } else {
-        // Add mode: default select all members, current user pays
-        setSelectedMemberUids(new Set(memberList.map((m) => m.uid)));
-        setPaidByUid(currentUid);
-        setSelectedTax(group.enabledTaxOptions[0] ?? 2.25);
+      } finally {
+        setLoading(false);
       }
     };
     load();
@@ -213,6 +218,7 @@ export function useAddItemViewModel(
 
   return {
     isEditing: !!expenseId,
+    loading,
     itemName, rawPrice, quantity, selectedTax, customTax, enabledTaxOptions,
     isLiquor, liquorStateTax, liquorCountyTax, members, selectedMemberUids, paidByUid, expenseDate,
     quantityNum, effectiveTaxRate, taxAmount, liquorTaxAmount, totalPrice, splitCount, perPerson, canSave,

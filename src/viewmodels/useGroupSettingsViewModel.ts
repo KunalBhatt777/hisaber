@@ -33,6 +33,7 @@ export interface GroupSettingsViewModel {
   addMember: (uid: string) => Promise<void>;
   removeMember: (uid: string) => Promise<void>;
   loading: boolean;
+  saving: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -45,6 +46,7 @@ export function useGroupSettingsViewModel(groupId: string): GroupSettingsViewMod
   const [simplifyDebts, setSimplifyDebts] = useState(true);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -72,8 +74,13 @@ export function useGroupSettingsViewModel(groupId: string): GroupSettingsViewMod
   const saveGroupName = useCallback(async () => {
     const name = groupNameDraft.trim();
     if (!name || name === group?.name) return;
-    await updateGroupName(groupId, name);
-    setGroup((prev) => prev ? { ...prev, name } : prev);
+    setSaving(true);
+    try {
+      await updateGroupName(groupId, name);
+      setGroup((prev) => prev ? { ...prev, name } : prev);
+    } finally {
+      setSaving(false);
+    }
   }, [groupId, groupNameDraft, group]);
 
   const addTaxOption = useCallback(async () => {
@@ -81,27 +88,44 @@ export function useGroupSettingsViewModel(groupId: string): GroupSettingsViewMod
     if (isNaN(parsed) || parsed <= 0 || parsed > 100) return;
     if (taxOptions.includes(parsed)) return;
     const newOptions = [...taxOptions, parsed].sort((a, b) => a - b);
-    await updateGroupTaxOptions(groupId, newOptions);
-    setTaxOptions(newOptions);
-    setNewTaxValue('');
+    setSaving(true);
+    try {
+      await updateGroupTaxOptions(groupId, newOptions);
+      setTaxOptions(newOptions);
+      setNewTaxValue('');
+    } finally {
+      setSaving(false);
+    }
   }, [groupId, newTaxValue, taxOptions]);
 
   const removeTaxOption = useCallback(async (value: number) => {
     if (taxOptions.length <= 1) return;
     const newOptions = taxOptions.filter((v) => v !== value);
-    await updateGroupTaxOptions(groupId, newOptions);
-    setTaxOptions(newOptions);
+    setSaving(true);
+    try {
+      await updateGroupTaxOptions(groupId, newOptions);
+      setTaxOptions(newOptions);
+    } finally {
+      setSaving(false);
+    }
   }, [groupId, taxOptions]);
 
   const toggleSimplifyDebts = useCallback(async () => {
     const next = !simplifyDebts;
-    await updateGroupSimplifyDebts(groupId, next);
-    setSimplifyDebts(next);
-    setGroup((prev) => prev ? { ...prev, simplifyDebts: next } : prev);
+    setSaving(true);
+    try {
+      await updateGroupSimplifyDebts(groupId, next);
+      setSimplifyDebts(next);
+      setGroup((prev) => prev ? { ...prev, simplifyDebts: next } : prev);
+    } finally {
+      setSaving(false);
+    }
   }, [groupId, simplifyDebts]);
 
   const addMember = useCallback(async (memberUid: string) => {
     const currentGroupName = group?.name ?? '';
+    setSaving(true);
+    try {
     await addMemberToGroup(groupId, memberUid);
     await refresh();
     getUserProfile(memberUid).then((profile) => {
@@ -114,17 +138,25 @@ export function useGroupSettingsViewModel(groupId: string): GroupSettingsViewMod
         );
       }
     });
+    } finally {
+      setSaving(false);
+    }
   }, [groupId, refresh, group]);
 
   const removeMember = useCallback(async (memberUid: string) => {
     const currentGroupName = group?.name ?? '';
-    await removeMemberFromGroup(groupId, memberUid);
-    await refresh();
-    getUserProfile(memberUid).then((profile) => {
-      if (profile?.pushToken) {
-        sendRemovedFromGroupNotification(profile.pushToken, currentGroupName);
-      }
-    });
+    setSaving(true);
+    try {
+      await removeMemberFromGroup(groupId, memberUid);
+      await refresh();
+      getUserProfile(memberUid).then((profile) => {
+        if (profile?.pushToken) {
+          sendRemovedFromGroupNotification(profile.pushToken, currentGroupName);
+        }
+      });
+    } finally {
+      setSaving(false);
+    }
   }, [groupId, refresh, group]);
 
   return {
@@ -143,6 +175,7 @@ export function useGroupSettingsViewModel(groupId: string): GroupSettingsViewMod
     addMember,
     removeMember,
     loading,
+    saving,
     refresh,
   };
 }

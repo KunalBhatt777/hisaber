@@ -35,6 +35,7 @@ export interface FriendsViewModel {
   loading: boolean;
   balancesLoading: boolean;
   searching: boolean;
+  actionLoading: boolean;
   runSearch: () => Promise<void>;
   sendRequest: (toUid: string) => Promise<void>;
   cancelRequest: (toUid: string) => Promise<void>;
@@ -55,6 +56,7 @@ export function useFriendsViewModel(): FriendsViewModel {
   const [loading, setLoading] = useState(false);
   const [balancesLoading, setBalancesLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const loadBalances = useCallback(async (friendList: UserProfile[]) => {
     if (!uid || !friendList.length) {
@@ -135,45 +137,70 @@ export function useFriendsViewModel(): FriendsViewModel {
   };
 
   const sendRequest = async (toUid: string) => {
-    await sendFriendRequest(uid, toUid);
-    setSearchResults([]);
-    setSearchQuery('');
-    await refresh();
-    getUserProfile(toUid).then((profile) => {
-      if (profile?.pushToken) {
-        sendFriendRequestNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
-      }
-    });
+    setActionLoading(true);
+    try {
+      await sendFriendRequest(uid, toUid);
+      setSearchResults([]);
+      setSearchQuery('');
+      await refresh();
+      getUserProfile(toUid).then((profile) => {
+        if (profile?.pushToken) {
+          sendFriendRequestNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
+        }
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const cancelRequest = async (toUid: string) => {
-    await cancelFriendRequest(uid, toUid);
-    await refresh();
+    setActionLoading(true);
+    try {
+      await cancelFriendRequest(uid, toUid);
+      await refresh();
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const acceptRequest = async (fromUid: string) => {
-    await acceptFriendRequest(uid, fromUid);
-    await refresh();
-    getUserProfile(fromUid).then((profile) => {
-      if (profile?.pushToken) {
-        sendFriendAcceptedNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
-      }
-    });
+    setActionLoading(true);
+    try {
+      await acceptFriendRequest(uid, fromUid);
+      await refresh();
+      getUserProfile(fromUid).then((profile) => {
+        if (profile?.pushToken) {
+          sendFriendAcceptedNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
+        }
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const declineRequest = async (fromUid: string) => {
-    await declineFriendRequest(uid, fromUid);
-    await refresh();
+    setActionLoading(true);
+    try {
+      await declineFriendRequest(uid, fromUid);
+      await refresh();
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const removeFriendById = async (friendUid: string) => {
-    await removeFriend(uid, friendUid);
-    await refresh();
-    getUserProfile(friendUid).then((profile) => {
-      if (profile?.pushToken) {
-        sendFriendRemovedNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
-      }
-    });
+    setActionLoading(true);
+    try {
+      await removeFriend(uid, friendUid);
+      await refresh();
+      getUserProfile(friendUid).then((profile) => {
+        if (profile?.pushToken) {
+          sendFriendRemovedNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
+        }
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return {
@@ -187,6 +214,7 @@ export function useFriendsViewModel(): FriendsViewModel {
     loading,
     balancesLoading,
     searching,
+    actionLoading,
     runSearch,
     sendRequest,
     cancelRequest,
