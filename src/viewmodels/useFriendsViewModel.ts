@@ -14,9 +14,15 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
   removeFriend,
+  getUserProfile,
 } from '../firebase/firestore';
 import { UserProfile, FriendWithBalance, GroupBalance } from '../types';
 import { computeNetBetweenTwo } from '../utils/balanceCalculator';
+import {
+  sendFriendRequestNotification,
+  sendFriendAcceptedNotification,
+  sendFriendRemovedNotification,
+} from '../utils/pushNotifications';
 
 export interface FriendsViewModel {
   friends: UserProfile[];
@@ -133,6 +139,11 @@ export function useFriendsViewModel(): FriendsViewModel {
     setSearchResults([]);
     setSearchQuery('');
     await refresh();
+    getUserProfile(toUid).then((profile) => {
+      if (profile?.pushToken) {
+        sendFriendRequestNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
+      }
+    });
   };
 
   const cancelRequest = async (toUid: string) => {
@@ -143,6 +154,11 @@ export function useFriendsViewModel(): FriendsViewModel {
   const acceptRequest = async (fromUid: string) => {
     await acceptFriendRequest(uid, fromUid);
     await refresh();
+    getUserProfile(fromUid).then((profile) => {
+      if (profile?.pushToken) {
+        sendFriendAcceptedNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
+      }
+    });
   };
 
   const declineRequest = async (fromUid: string) => {
@@ -153,6 +169,11 @@ export function useFriendsViewModel(): FriendsViewModel {
   const removeFriendById = async (friendUid: string) => {
     await removeFriend(uid, friendUid);
     await refresh();
+    getUserProfile(friendUid).then((profile) => {
+      if (profile?.pushToken) {
+        sendFriendRemovedNotification(profile.pushToken, auth.currentUser?.displayName ?? 'Someone');
+      }
+    });
   };
 
   return {

@@ -3,7 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getGroup, getExpense, addExpense, updateExpense, getUserProfile } from '../firebase/firestore';
 import { auth } from '../firebase/config';
 import { GroupMember, HomeStackParamList } from '../types';
-import { sendExpenseNotification } from '../utils/pushNotifications';
+import { sendExpenseNotification, sendExpenseEditedNotification } from '../utils/pushNotifications';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'AddItem'>;
 
@@ -177,6 +177,13 @@ export function useAddItemViewModel(
 
     if (expenseId) {
       await updateExpense(groupId, expenseId, payload);
+      const notifyUids = [...selectedMemberUids].filter((u) => u !== currentUid);
+      if (notifyUids.length > 0) {
+        Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
+          const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
+          sendExpenseEditedNotification(tokens, auth.currentUser?.displayName ?? 'Someone', groupId, groupName, itemName.trim());
+        });
+      }
     } else {
       await addExpense(groupId, payload);
       // Notify split members (excluding the person who added the expense)

@@ -8,9 +8,14 @@ import {
   addMemberToGroup,
   removeMemberFromGroup,
   getFriends,
+  getUserProfile,
 } from '../firebase/firestore';
 import { auth } from '../firebase/config';
 import { Group, UserProfile } from '../types';
+import {
+  sendAddedToGroupNotification,
+  sendRemovedFromGroupNotification,
+} from '../utils/pushNotifications';
 
 export interface GroupSettingsViewModel {
   group: Group | null;
@@ -96,14 +101,31 @@ export function useGroupSettingsViewModel(groupId: string): GroupSettingsViewMod
   }, [groupId, simplifyDebts]);
 
   const addMember = useCallback(async (memberUid: string) => {
+    const currentGroupName = group?.name ?? '';
     await addMemberToGroup(groupId, memberUid);
     await refresh();
-  }, [groupId, refresh]);
+    getUserProfile(memberUid).then((profile) => {
+      if (profile?.pushToken) {
+        sendAddedToGroupNotification(
+          profile.pushToken,
+          auth.currentUser?.displayName ?? 'Someone',
+          currentGroupName,
+          groupId,
+        );
+      }
+    });
+  }, [groupId, refresh, group]);
 
   const removeMember = useCallback(async (memberUid: string) => {
+    const currentGroupName = group?.name ?? '';
     await removeMemberFromGroup(groupId, memberUid);
     await refresh();
-  }, [groupId, refresh]);
+    getUserProfile(memberUid).then((profile) => {
+      if (profile?.pushToken) {
+        sendRemovedFromGroupNotification(profile.pushToken, currentGroupName);
+      }
+    });
+  }, [groupId, refresh, group]);
 
   return {
     group,

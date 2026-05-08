@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getExpenses, deleteExpense, getGroup, getPayments, addPayment } from '../firebase/firestore';
+import { getExpenses, deleteExpense, getGroup, getPayments, addPayment, getUserProfile } from '../firebase/firestore';
 import { auth } from '../firebase/config';
 import { Group, GroupExpense, GroupPayment, HomeStackParamList } from '../types';
 import { exportGroupToExcel, exportGroupToPdf } from '../utils/groupExport';
+import { sendPaymentNotification, sendExpenseDeletedNotification } from '../utils/pushNotifications';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'Group'>;
 export type GroupTab = 'expenses' | 'payments';
@@ -57,10 +58,22 @@ export function useGroupViewModel(
 
   const removeExpense = useCallback(
     async (id: string) => {
+      const currentUid = auth.currentUser?.uid ?? '';
+      const currentGroupName = group?.name ?? '';
+      const expense = expenses.find((e) => e.id === id);
       await deleteExpense(groupId, id);
       await refresh();
+      if (expense) {
+        const notifyUids = Object.keys(expense.splits).filter((u) => u !== currentUid);
+        if (notifyUids.length > 0 && currentGroupName) {
+          Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
+            const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
+            sendExpenseDeletedNotification(tokens, auth.currentUser?.displayName ?? 'Someone', groupId, currentGroupName, expense.itemName);
+          });
+        }
+      }
     },
-    [groupId, refresh],
+    [groupId, refresh, group, expenses],
   );
 
   const submitPayment = useCallback(
@@ -74,10 +87,18 @@ export function useGroupViewModel(
       createdAt?: string,
     ) => {
       const currentUid = auth.currentUser?.uid ?? '';
+      const currentGroupName = group?.name ?? '';
       await addPayment(groupId, { paidBy, paidTo, paidByName, paidToName, amount, note, createdBy: currentUid, ...(createdAt ? { createdAt } : {}) });
       await refresh();
+      const notifyUids = [paidBy, paidTo].filter((u) => u !== currentUid);
+      if (notifyUids.length > 0 && currentGroupName) {
+        Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
+          const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
+          sendPaymentNotification(tokens, paidByName, paidToName, amount, currentGroupName, groupId);
+        });
+      }
     },
-    [groupId, refresh],
+    [groupId, refresh, group],
   );
 
   const openShareModal = useCallback(() => setShareModalVisible(true), []);

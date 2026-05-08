@@ -12,6 +12,8 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// ─── Registration ─────────────────────────────────────────────────────────────
+
 export async function registerForPushNotifications(uid: string): Promise<void> {
   try {
     const { status: existing } = await Notifications.getPermissionsAsync();
@@ -58,29 +60,9 @@ export async function registerForPushNotifications(uid: string): Promise<void> {
   }
 }
 
-export async function sendExpenseNotification(
-  tokens: string[],
-  paidByName: string,
-  groupId: string,
-  groupName: string,
-  itemName: string,
-  totalPrice: number,
-): Promise<void> {
-  const valid = tokens.filter(Boolean);
-  console.log('[Push] Sending to tokens:', valid);
-  if (!valid.length) {
-    console.warn('[Push] No valid tokens — skipping send');
-    return;
-  }
+// ─── Internal helpers ─────────────────────────────────────────────────────────
 
-  const messages = valid.map((to) => ({
-    to,
-    sound: 'default',
-    title: `${itemName} · $${totalPrice.toFixed(2)}`,
-    body: `${paidByName} added an expense in ${groupName}`,
-    data: { groupId, groupName },
-  }));
-
+async function pushSend(messages: object[]): Promise<void> {
   try {
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
@@ -92,4 +74,183 @@ export async function sendExpenseNotification(
   } catch (e) {
     console.error('[Push] Send error:', e);
   }
+}
+
+function buildMessages(
+  tokens: string[],
+  title: string,
+  body: string,
+  data: object = {},
+): object[] {
+  return tokens.filter(Boolean).map((to) => ({
+    to,
+    sound: 'default',
+    title,
+    body,
+    data,
+  }));
+}
+
+// ─── Expense ──────────────────────────────────────────────────────────────────
+
+export async function sendExpenseNotification(
+  tokens: string[],
+  paidByName: string,
+  groupId: string,
+  groupName: string,
+  itemName: string,
+  totalPrice: number,
+): Promise<void> {
+  const valid = tokens.filter(Boolean);
+  console.log('[Push] Sending expense to tokens:', valid);
+  if (!valid.length) {
+    console.warn('[Push] No valid tokens — skipping send');
+    return;
+  }
+  await pushSend(
+    buildMessages(
+      valid,
+      `${itemName} · $${totalPrice.toFixed(2)}`,
+      `${paidByName} added an expense in ${groupName}`,
+      { type: 'group', groupId, groupName },
+    ),
+  );
+}
+
+// ─── Group ────────────────────────────────────────────────────────────────────
+
+export async function sendGroupCreatedNotification(
+  tokens: string[],
+  creatorName: string,
+  groupName: string,
+  groupId: string,
+): Promise<void> {
+  const valid = tokens.filter(Boolean);
+  console.log('[Push] Sending GroupCreated to tokens:', valid);
+  if (!valid.length) return;
+  await pushSend(
+    buildMessages(valid, groupName, `${creatorName} created a group`, { type: 'group', groupId, groupName }),
+  );
+}
+
+export async function sendAddedToGroupNotification(
+  token: string,
+  adderName: string,
+  groupName: string,
+  groupId: string,
+): Promise<void> {
+  if (!token) return;
+  console.log('[Push] Sending AddedToGroup to token:', token);
+  await pushSend(
+    buildMessages([token], groupName, `${adderName} added you to ${groupName}`, { type: 'group', groupId, groupName }),
+  );
+}
+
+export async function sendRemovedFromGroupNotification(
+  token: string,
+  groupName: string,
+): Promise<void> {
+  if (!token) return;
+  console.log('[Push] Sending RemovedFromGroup to token:', token);
+  await pushSend(
+    buildMessages([token], groupName, `You were removed from ${groupName}`, {}),
+  );
+}
+
+export async function sendExpenseEditedNotification(
+  tokens: string[],
+  editorName: string,
+  groupId: string,
+  groupName: string,
+  itemName: string,
+): Promise<void> {
+  const valid = tokens.filter(Boolean);
+  console.log('[Push] Sending ExpenseEdited to tokens:', valid);
+  if (!valid.length) return;
+  await pushSend(
+    buildMessages(
+      valid,
+      `${itemName} · updated`,
+      `${editorName} updated an expense in ${groupName}`,
+      { type: 'group', groupId, groupName },
+    ),
+  );
+}
+
+export async function sendExpenseDeletedNotification(
+  tokens: string[],
+  deleterName: string,
+  groupId: string,
+  groupName: string,
+  itemName: string,
+): Promise<void> {
+  const valid = tokens.filter(Boolean);
+  console.log('[Push] Sending ExpenseDeleted to tokens:', valid);
+  if (!valid.length) return;
+  await pushSend(
+    buildMessages(
+      valid,
+      `${itemName} · deleted`,
+      `${deleterName} deleted an expense in ${groupName}`,
+      { type: 'group', groupId, groupName },
+    ),
+  );
+}
+
+// ─── Payment ──────────────────────────────────────────────────────────────────
+
+export async function sendPaymentNotification(
+  tokens: string[],
+  payerName: string,
+  payeeName: string,
+  amount: number,
+  groupName: string,
+  groupId: string,
+): Promise<void> {
+  const valid = tokens.filter(Boolean);
+  console.log('[Push] Sending Payment to tokens:', valid);
+  if (!valid.length) return;
+  await pushSend(
+    buildMessages(
+      valid,
+      groupName,
+      `${payerName} paid ${payeeName} $${amount.toFixed(2)}`,
+      { type: 'group', groupId, groupName },
+    ),
+  );
+}
+
+// ─── Friends ──────────────────────────────────────────────────────────────────
+
+export async function sendFriendRequestNotification(
+  token: string,
+  senderName: string,
+): Promise<void> {
+  if (!token) return;
+  console.log('[Push] Sending FriendRequest to token:', token);
+  await pushSend(
+    buildMessages([token], '', `${senderName} sent you a Friend Request`, { type: 'friend' }),
+  );
+}
+
+export async function sendFriendAcceptedNotification(
+  token: string,
+  acceptorName: string,
+): Promise<void> {
+  if (!token) return;
+  console.log('[Push] Sending FriendAccepted to token:', token);
+  await pushSend(
+    buildMessages([token], `${acceptorName} accepted your Friend Request`, '', { type: 'friend' }),
+  );
+}
+
+export async function sendFriendRemovedNotification(
+  token: string,
+  removerName: string,
+): Promise<void> {
+  if (!token) return;
+  console.log('[Push] Sending FriendRemoved to token:', token);
+  await pushSend(
+    buildMessages([token], `${removerName} removed you as a friend`, '', { type: 'friend' }),
+  );
 }

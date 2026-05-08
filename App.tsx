@@ -25,8 +25,16 @@ export default function App() {
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as { groupId?: string; groupName?: string };
-      if (data?.groupId && data?.groupName && navigationRef.current?.isReady()) {
+      const data = response.notification.request.content.data as {
+        type?: string;
+        groupId?: string;
+        groupName?: string;
+      };
+      if (!navigationRef.current?.isReady()) return;
+
+      if (data?.type === 'friend') {
+        navigationRef.current.dispatch(CommonActions.navigate({ name: 'Friends' }));
+      } else if (data?.groupId && data?.groupName) {
         navigationRef.current.dispatch(
           CommonActions.navigate({ name: 'Group', params: { groupId: data.groupId, groupName: data.groupName } }),
         );

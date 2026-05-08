@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { getGroup, getExpenses, getPayments, addPayment } from '../firebase/firestore';
+import { getGroup, getExpenses, getPayments, addPayment, getUserProfile } from '../firebase/firestore';
 import { auth } from '../firebase/config';
 import { BalanceEntry, Group, GroupExpense, GroupPayment } from '../types';
 import { calculateBalances } from '../utils/balanceCalculator';
+import { sendPaymentNotification } from '../utils/pushNotifications';
 
 export interface GroupSummaryViewModel {
   group: Group | null;
@@ -58,6 +59,7 @@ export function useGroupSummaryViewModel(groupId: string): GroupSummaryViewModel
   const submitPayment = useCallback(
     async (entry: BalanceEntry, amount: number, note: string, createdAt?: string) => {
       const currentUid = auth.currentUser?.uid ?? '';
+      const currentGroupName = group?.name ?? '';
       setSubmitting(true);
       try {
         await addPayment(groupId, {
@@ -71,11 +73,18 @@ export function useGroupSummaryViewModel(groupId: string): GroupSummaryViewModel
           ...(createdAt ? { createdAt } : {}),
         });
         await refresh();
+        const notifyUids = [entry.fromUid, entry.toUid].filter((u) => u !== currentUid);
+        if (notifyUids.length > 0 && currentGroupName) {
+          Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
+            const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
+            sendPaymentNotification(tokens, entry.fromName, entry.toName, amount, currentGroupName, groupId);
+          });
+        }
       } finally {
         setSubmitting(false);
       }
     },
-    [groupId, refresh],
+    [groupId, refresh, group],
   );
 
   return { group, expenses, payments, balances, loading, submitting, refresh, submitPayment };

@@ -33,6 +33,7 @@ import {
   getUserProfile,
   getFriends,
 } from '../firebase/firestore';
+import { sendGroupCreatedNotification } from '../utils/pushNotifications';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'Home'>;
 
@@ -272,6 +273,13 @@ export default function HomeScreen() {
       );
       await refresh();
       navigation.navigate('Group', { groupId, groupName: name });
+
+      if (memberUids.length > 0) {
+        Promise.all(memberUids.map((u) => getUserProfile(u))).then((profiles) => {
+          const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
+          sendGroupCreatedNotification(tokens, auth.currentUser?.displayName ?? 'Someone', name, groupId);
+        });
+      }
     } catch (e) {
       Alert.alert('Error', 'Failed to create group.');
     }
