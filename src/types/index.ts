@@ -83,6 +83,7 @@ export interface UserProfile {
   incomingRequests: string[];
   outgoingRequests: string[];
   createdAt: string;
+  pushToken?: string;
 }
 
 export interface GroupMember {

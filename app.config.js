@@ -21,6 +21,9 @@ export default {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
+      entitlements: {
+        'aps-environment': 'production',
+      },
     },
     android: {
       package: 'com.kunalbhatt777.centsible',
@@ -34,7 +37,7 @@ export default {
     web: {
       favicon: './assets/CentsibleLogo.png',
     },
-    plugins: ['expo-sqlite', 'expo-sharing', '@react-native-community/datetimepicker'],
+    plugins: ['expo-sqlite', 'expo-sharing', '@react-native-community/datetimepicker', 'expo-notifications'],
     extra: {
       eas: {
         projectId: '058367e4-367d-422e-85b6-1dbd65e0f624',

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getGroup, getExpense, addExpense, updateExpense } from '../firebase/firestore';
+import { getGroup, getExpense, addExpense, updateExpense, getUserProfile } from '../firebase/firestore';
 import { auth } from '../firebase/config';
 import { GroupMember, HomeStackParamList } from '../types';
+import { sendExpenseNotification } from '../utils/pushNotifications';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'AddItem'>;
 
@@ -67,12 +68,14 @@ export function useAddItemViewModel(
   const [selectedMemberUids, setSelectedMemberUids] = useState<Set<string>>(new Set());
   const [paidByUid, setPaidByUid] = useState(currentUid);
   const [expenseDate, setExpenseDate] = useState<Date>(new Date());
+  const [groupName, setGroupName] = useState('');
 
   useEffect(() => {
     const load = async () => {
       const group = await getGroup(groupId);
       if (!group) return;
 
+      setGroupName(group.name);
       const memberList: GroupMember[] = Object.entries(group.members).map(
         ([uid, m]) => ({ uid, displayName: m.displayName, username: m.username }),
       );
@@ -176,6 +179,21 @@ export function useAddItemViewModel(
       await updateExpense(groupId, expenseId, payload);
     } else {
       await addExpense(groupId, payload);
+      // Notify split members (excluding the person who added the expense)
+      const notifyUids = [...selectedMemberUids].filter((u) => u !== currentUid);
+      if (notifyUids.length > 0) {
+        Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
+          const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
+          sendExpenseNotification(
+            tokens,
+            auth.currentUser?.displayName ?? 'Someone',
+            groupId,
+            groupName,
+            itemName.trim(),
+            totalPrice,
+          );
+        });
+      }
     }
     navigation.goBack();
   }, [

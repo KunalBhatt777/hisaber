@@ -8,6 +8,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { useAppTheme } from '../theme';
 import { AuthStackParamList, TabParamList, HomeStackParamList } from '../types';
 import { auth } from '../firebase/config';
+import { registerForPushNotifications } from '../utils/pushNotifications';
 
 import HomeScreen from '../screens/HomeScreen';
 import GroupScreen from '../screens/GroupScreen';
@@ -112,7 +113,10 @@ export default function AppNavigator() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (u) registerForPushNotifications(u.uid);
+    });
     return unsub;
   }, []);
 

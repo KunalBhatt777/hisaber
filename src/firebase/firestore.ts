@@ -25,6 +25,10 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   return { uid: snap.id, ...snap.data() } as UserProfile;
 }
 
+export async function updatePushToken(uid: string, token: string): Promise<void> {
+  await updateDoc(doc(db, 'users', uid), { pushToken: token });
+}
+
 export async function searchUsers(term: string): Promise<UserProfile[]> {
   const lower = term.toLowerCase().trim();
   const results: UserProfile[] = [];
