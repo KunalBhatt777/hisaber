@@ -2,29 +2,29 @@ import { useColorScheme } from 'react-native';
 
 export const Colors = {
   light: {
-    background: '#F2F2F7',
+    background: '#EEF0F8',
     surface: '#FFFFFF',
     card: '#FFFFFF',
-    primary: '#5856D6',
-    primaryLight: '#EFEFFC',
-    text: '#000000',
-    textSecondary: '#6E6E73',
-    border: '#C6C6C8',
-    separator: '#E5E5EA',
+    primary: '#022954',       // deep navy — brand primary
+    primaryLight: '#eaebfe',  // periwinkle tint — badges, avatar bg
+    text: '#011627',
+    textSecondary: '#505a74', // slate blue-gray
+    border: '#b0b8ce',        // cool blue-gray
+    separator: '#DDE1EC',
     success: '#34C759',
     danger: '#FF3B30',
     warning: '#FF9500',
   },
   dark: {
-    background: '#000000',
-    surface: '#1C1C1E',
-    card: '#2C2C2E',
-    primary: '#7B79FF',
-    primaryLight: '#1A1A2E',
-    text: '#FFFFFF',
-    textSecondary: '#8E8E93',
-    border: '#38383A',
-    separator: '#38383A',
+    background: '#020B18',
+    surface: '#0C1D34',
+    card: '#142741',
+    primary: '#6B8EC7',       // lighter navy readable on dark bg
+    primaryLight: '#0D2240',  // dark navy tint
+    text: '#E4EAF5',
+    textSecondary: '#b0b8ce', // cool blue-gray
+    border: '#354c7c',        // medium navy
+    separator: '#1A2E50',
     success: '#30D158',
     danger: '#FF453A',
     warning: '#FF9F0A',

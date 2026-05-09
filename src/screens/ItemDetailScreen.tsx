@@ -1,14 +1,14 @@
-import React, { useLayoutEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAppTheme } from '../theme';
-import { useItemDetailViewModel } from '../viewmodels/useItemDetailViewModel';
-import { ExpenseSplit, HomeStackParamList } from '../types';
+import { GroupExpense, HomeStackParamList } from '../types';
 import { formatCurrency, formatTaxRate } from '../utils/formatters';
+import { getExpense, getGroup } from '../firebase/firestore';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'ItemDetail'>;
@@ -16,20 +16,31 @@ type Props = {
 };
 
 export default function ItemDetailScreen({ navigation, route }: Props) {
-  const { expenseId } = route.params;
+  const { groupId, expenseId } = route.params;
   const colors = useAppTheme();
-  const vm = useItemDetailViewModel(expenseId);
+  const [expense, setExpense] = useState<GroupExpense | null>(null);
+  const [members, setMembers] = useState<Record<string, { displayName: string; username: string }>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const [e, g] = await Promise.all([
+        getExpense(groupId, expenseId),
+        getGroup(groupId),
+      ]);
+      setExpense(e);
+      if (g) setMembers(g.members);
+      setLoading(false);
+    };
+    load();
+  }, [groupId, expenseId]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity
           onPress={() =>
-            vm.expense &&
-            navigation.navigate('AddItem', {
-              sheetId: vm.expense.sheet_id,
-              expenseId,
-            })
+            navigation.navigate('AddItem', { groupId, expenseId })
           }
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
@@ -37,107 +48,78 @@ export default function ItemDetailScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, expenseId, vm.expense, colors.primary]);
+  }, [navigation, groupId, expenseId, colors.primary]);
 
-  if (!vm.expense) {
+  if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!expense) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
         <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>
-          Loading...
+          Expense not found.
         </Text>
       </SafeAreaView>
     );
   }
 
-  const { expense } = vm;
+  const splits = Object.entries(expense.splits);
+  const splitCount = splits.length;
+  const perPerson = splitCount > 0 ? expense.totalPrice / splitCount : 0;
+  const paidByName = members[expense.paidBy]?.displayName ?? expense.paidBy;
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={['bottom']}
-    >
-      {/* ── Breakdown Card ─────────────────────────────────────────────── */}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+      {/* ── Breakdown Card ───────────────────────────────────────────── */}
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
-        <Row
-          label="Raw Price"
-          value={formatCurrency(expense.raw_price)}
-          colors={colors}
-        />
+        <Row label="Raw Price" value={formatCurrency(expense.rawPrice)} colors={colors} />
         <Divider colors={colors} />
-        <Row
-          label="Tax Rate"
-          value={formatTaxRate(expense.tax_rate)}
-          colors={colors}
-        />
+        <Row label="Tax Rate" value={formatTaxRate(expense.taxRate)} colors={colors} />
         <Divider colors={colors} />
-        <Row
-          label="Tax Amount"
-          value={formatCurrency(expense.total_price - expense.raw_price)}
-          colors={colors}
-        />
+        <Row label="Tax Amount" value={formatCurrency(expense.totalPrice - expense.rawPrice)} colors={colors} />
         <Divider colors={colors} />
-        <Row
-          label="Total"
-          value={formatCurrency(expense.total_price)}
-          colors={colors}
-          bold
-          valueColor={colors.primary}
-        />
+        <Row label="Paid By" value={paidByName} colors={colors} />
+        <Divider colors={colors} />
+        <Row label="Total" value={formatCurrency(expense.totalPrice)} colors={colors} bold valueColor={colors.primary} />
       </View>
 
-      {/* ── Split Section ──────────────────────────────────────────────── */}
+      {/* ── Split Section ─────────────────────────────────────────────── */}
       <Text style={[styles.splitHeader, { color: colors.textSecondary }]}>
-        SPLIT BETWEEN {vm.splits.length}{' '}
-        {vm.splits.length === 1 ? 'PERSON' : 'PEOPLE'}
+        SPLIT BETWEEN {splitCount} {splitCount === 1 ? 'PERSON' : 'PEOPLE'}
       </Text>
 
       <FlatList
-        data={vm.splits}
-        keyExtractor={(item: ExpenseSplit) => String(item.id)}
+        data={splits}
+        keyExtractor={([uid]) => uid}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => (
-          <View
-            style={[
-              styles.separator,
-              { backgroundColor: colors.separator },
-            ]}
-          />
+          <View style={[styles.separator, { backgroundColor: colors.separator }]} />
         )}
-        renderItem={({ item }: { item: ExpenseSplit }) => (
-          <View
-            style={[styles.personRow, { backgroundColor: colors.card }]}
-          >
+        renderItem={({ item: [uid, split] }) => (
+          <View style={[styles.personRow, { backgroundColor: colors.card }]}>
             <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
               <Text style={[styles.avatarText, { color: colors.primary }]}>
-                {item.person_name.charAt(0).toUpperCase()}
+                {split.displayName.charAt(0).toUpperCase()}
               </Text>
             </View>
-            <Text style={[styles.personName, { color: colors.text }]}>
-              {item.person_name}
-            </Text>
+            <Text style={[styles.personName, { color: colors.text }]}>{split.displayName}</Text>
             <Text style={[styles.personShare, { color: colors.success }]}>
-              {formatCurrency(vm.perPerson)}
+              {formatCurrency(perPerson)}
             </Text>
           </View>
         )}
       />
 
-      {/* ── Per-person summary ─────────────────────────────────────────── */}
-      {vm.splits.length > 0 && (
-        <View
-          style={[
-            styles.summaryBar,
-            {
-              backgroundColor: colors.surface,
-              borderTopColor: colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
-            Each person pays
-          </Text>
+      {splitCount > 0 && (
+        <View style={[styles.summaryBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Each person pays</Text>
           <Text style={[styles.summaryAmount, { color: colors.success }]}>
-            {formatCurrency(vm.perPerson)}
+            {formatCurrency(perPerson)}
           </Text>
         </View>
       )}
@@ -162,16 +144,8 @@ function Row({
 }) {
   return (
     <View style={styles.row}>
-      <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>
-        {label}
-      </Text>
-      <Text
-        style={[
-          styles.rowValue,
-          { color: valueColor ?? colors.text },
-          bold && styles.rowValueBold,
-        ]}
-      >
+      <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.rowValue, { color: valueColor ?? colors.text }, bold && styles.rowValueBold]}>
         {value}
       </Text>
     </View>
@@ -179,20 +153,14 @@ function Row({
 }
 
 function Divider({ colors }: { colors: ReturnType<typeof useAppTheme> }) {
-  return (
-    <View style={[styles.divider, { backgroundColor: colors.separator }]} />
-  );
+  return <View style={[styles.divider, { backgroundColor: colors.separator }]} />;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  card: {
-    margin: 16,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
+  card: { margin: 16, borderRadius: 14, overflow: 'hidden' },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -204,13 +172,7 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: 15, fontWeight: '500' },
   rowValueBold: { fontWeight: '700', fontSize: 17 },
   divider: { height: StyleSheet.hairlineWidth },
-  splitHeader: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
+  splitHeader: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, paddingHorizontal: 20, paddingBottom: 8 },
   listContent: { paddingBottom: 100 },
   personRow: {
     flexDirection: 'row',
@@ -218,14 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
+  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   avatarText: { fontSize: 15, fontWeight: '700' },
   personName: { flex: 1, fontSize: 15, fontWeight: '500' },
   personShare: { fontSize: 16, fontWeight: '700' },

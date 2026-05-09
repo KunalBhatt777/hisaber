@@ -3,7 +3,7 @@ import { Expense, ExpenseSplit, Sheet, SheetPerson } from '../types';
 
 // ─── Open DB (synchronous singleton) ─────────────────────────────────────────
 
-const db = SQLite.openDatabaseSync('hisaber.db');
+const db = SQLite.openDatabaseSync('centsible.db');
 
 // ─── Initialise Schema ────────────────────────────────────────────────────────
 
