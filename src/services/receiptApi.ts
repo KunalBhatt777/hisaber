@@ -1,5 +1,5 @@
 // Update BASE_URL to your machine's LAN IP when testing on a physical device
-const BASE_URL = 'http://192.168.0.235:8000';
+const BASE_URL = 'https://hisaber-production.up.railway.app';
 
 export async function validateReceipt(base64: string): Promise<{ is_receipt: boolean }> {
   const res = await fetch(`${BASE_URL}/api/receipt/validate`, {
