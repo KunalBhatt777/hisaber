@@ -37,7 +37,19 @@ export default {
     web: {
       favicon: './assets/CentsibleLogo.png',
     },
-    plugins: ['expo-sqlite', 'expo-sharing', '@react-native-community/datetimepicker', 'expo-notifications'],
+    plugins: [
+      'expo-sqlite',
+      'expo-sharing',
+      '@react-native-community/datetimepicker',
+      'expo-notifications',
+      [
+        'expo-image-picker',
+        {
+          cameraPermission: 'Allow Centsible to access your camera to scan receipts.',
+          photosPermission: 'Allow Centsible to access your photos to upload receipts.',
+        },
+      ],
+    ],
     extra: {
       eas: {
         projectId: '058367e4-367d-422e-85b6-1dbd65e0f624',

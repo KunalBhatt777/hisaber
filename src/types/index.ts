@@ -12,14 +12,25 @@ export type TabParamList = {
   Profile: undefined;
 };
 
+export interface ScanItem {
+  prefillName: string;
+  price: number;
+}
+
 export type HomeStackParamList = {
   Home: undefined;
   Group: { groupId: string; groupName: string };
   GroupSettings: { groupId: string };
   GroupSummary: { groupId: string };
   ItemDetail: { groupId: string; expenseId: string; itemName: string };
-  AddItem: { groupId: string; expenseId?: string };
-
+  AddItem: {
+    groupId: string;
+    expenseId?: string;
+    prefillName?: string;
+    prefillPrice?: number;
+    scanItems?: ScanItem[];
+    scanIndex?: number;
+  };
 };
 
 // ─── Data Models ─────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getGroup, getExpense, addExpense, updateExpense, getUserProfile } from '../firebase/firestore';
 import { auth } from '../firebase/config';
-import { GroupMember, HomeStackParamList } from '../types';
+import { GroupMember, HomeStackParamList, ScanItem } from '../types';
 import { sendExpenseNotification, sendExpenseEditedNotification } from '../utils/pushNotifications';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'AddItem'>;
@@ -53,11 +53,15 @@ export function useAddItemViewModel(
   navigation: Nav,
   groupId: string,
   expenseId?: string,
+  prefillName?: string,
+  prefillPrice?: number,
+  scanItems?: ScanItem[],
+  scanIndex?: number,
 ): AddItemViewModel {
   const currentUid = auth.currentUser?.uid ?? '';
 
-  const [itemName, setItemName] = useState('');
-  const [rawPrice, setRawPrice] = useState('');
+  const [itemName, setItemName] = useState(prefillName ?? '');
+  const [rawPrice, setRawPrice] = useState(prefillPrice != null ? String(prefillPrice) : '');
   const [quantity, setQuantity] = useState('1');
   const [selectedTax, setSelectedTax] = useState<number>(2.25);
   const [customTax, setCustomTax] = useState('');
@@ -157,61 +161,78 @@ export function useAddItemViewModel(
 
   const save = useCallback(async () => {
     if (!canSave) return;
+    setLoading(true);
 
-    // Build splits map
-    const splitShare = parseFloat((totalPrice / splitCount).toFixed(2));
-    const splits: Record<string, { displayName: string; amount: number }> = {};
-    for (const uid of selectedMemberUids) {
-      const member = members.find((m) => m.uid === uid);
-      splits[uid] = { displayName: member?.displayName ?? uid, amount: splitShare };
-    }
-
-    const payload = {
-      itemName: itemName.trim(),
-      rawPrice: rawPriceNum,
-      taxRate: effectiveTaxRate,
-      totalPrice: parseFloat(totalPrice.toFixed(2)),
-      quantity: quantityNum,
-      isLiquor,
-      liquorStateTax: liquorStateTaxNum,
-      liquorCountyTax: liquorCountyTaxNum,
-      paidBy: paidByUid,
-      splits,
-      createdAt: expenseDate.toISOString(),
-    };
-
-    if (expenseId) {
-      await updateExpense(groupId, expenseId, payload);
-      const notifyUids = [...selectedMemberUids].filter((u) => u !== currentUid);
-      if (notifyUids.length > 0) {
-        Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
-          const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
-          sendExpenseEditedNotification(tokens, auth.currentUser?.displayName ?? 'Someone', groupId, groupName, itemName.trim());
-        });
+    try {
+      const splitShare = parseFloat((totalPrice / splitCount).toFixed(2));
+      const splits: Record<string, { displayName: string; amount: number }> = {};
+      for (const uid of selectedMemberUids) {
+        const member = members.find((m) => m.uid === uid);
+        splits[uid] = { displayName: member?.displayName ?? uid, amount: splitShare };
       }
-    } else {
-      await addExpense(groupId, payload);
-      // Notify split members (excluding the person who added the expense)
-      const notifyUids = [...selectedMemberUids].filter((u) => u !== currentUid);
-      if (notifyUids.length > 0) {
-        Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
-          const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
-          sendExpenseNotification(
-            tokens,
-            auth.currentUser?.displayName ?? 'Someone',
-            groupId,
-            groupName,
-            itemName.trim(),
-            totalPrice,
-          );
-        });
+
+      const payload = {
+        itemName: itemName.trim(),
+        rawPrice: rawPriceNum,
+        taxRate: effectiveTaxRate,
+        totalPrice: parseFloat(totalPrice.toFixed(2)),
+        quantity: quantityNum,
+        isLiquor,
+        liquorStateTax: liquorStateTaxNum,
+        liquorCountyTax: liquorCountyTaxNum,
+        paidBy: paidByUid,
+        splits,
+        createdAt: expenseDate.toISOString(),
+      };
+
+      if (expenseId) {
+        await updateExpense(groupId, expenseId, payload);
+        const notifyUids = [...selectedMemberUids].filter((u) => u !== currentUid);
+        if (notifyUids.length > 0) {
+          Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
+            const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
+            sendExpenseEditedNotification(tokens, auth.currentUser?.displayName ?? 'Someone', groupId, groupName, itemName.trim());
+          });
+        }
+      } else {
+        await addExpense(groupId, payload);
+        const notifyUids = [...selectedMemberUids].filter((u) => u !== currentUid);
+        if (notifyUids.length > 0) {
+          Promise.all(notifyUids.map((u) => getUserProfile(u))).then((profiles) => {
+            const tokens = profiles.flatMap((p) => (p?.pushToken ? [p.pushToken] : []));
+            sendExpenseNotification(
+              tokens,
+              auth.currentUser?.displayName ?? 'Someone',
+              groupId,
+              groupName,
+              itemName.trim(),
+              totalPrice,
+            );
+          });
+        }
       }
+
+      // Scan mode: advance to next item or finish
+      if (scanItems && scanIndex !== undefined && scanIndex < scanItems.length - 1) {
+        const nextIndex = scanIndex + 1;
+        const next = scanItems[nextIndex];
+        navigation.replace('AddItem', {
+          groupId,
+          prefillName: next.prefillName,
+          prefillPrice: next.price,
+          scanItems,
+          scanIndex: nextIndex,
+        });
+      } else {
+        navigation.goBack();
+      }
+    } catch {
+      setLoading(false);
     }
-    navigation.goBack();
   }, [
     canSave, expenseId, groupId, itemName, rawPriceNum, effectiveTaxRate, totalPrice,
     splitCount, selectedMemberUids, members, quantityNum, isLiquor, liquorStateTaxNum,
-    liquorCountyTaxNum, paidByUid, expenseDate, navigation,
+    liquorCountyTaxNum, paidByUid, expenseDate, navigation, scanItems, scanIndex,
   ]);
 
   const cancel = useCallback(() => navigation.goBack(), [navigation]);

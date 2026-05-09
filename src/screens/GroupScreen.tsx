@@ -23,9 +23,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAppTheme } from '../theme';
 import { useGroupViewModel } from '../viewmodels/useGroupViewModel';
+import { useReceiptScannerViewModel, InvalidReceiptError, ParseFailureError } from '../viewmodels/useReceiptScannerViewModel';
 import FAB from '../components/FAB';
 import DateTimeField from '../components/DateTimeField';
-import { GroupExpense, GroupPayment, HomeStackParamList } from '../types';
+import { GroupExpense, GroupPayment, HomeStackParamList, ScanItem } from '../types';
 import { formatCurrency, formatTaxRate } from '../utils/formatters';
 
 type Props = {
@@ -298,9 +299,13 @@ export default function GroupScreen({ navigation, route }: Props) {
   const { groupId, groupName } = route.params;
   const colors = useAppTheme();
   const vm = useGroupViewModel(navigation, groupId);
+  const scanner = useReceiptScannerViewModel();
 
   const [addPaymentVisible, setAddPaymentVisible] = useState(false);
   const [addPaymentSubmitting, setAddPaymentSubmitting] = useState(false);
+  const [sourcePickerVisible, setSourcePickerVisible] = useState(false);
+  const [scanErrorVisible, setScanErrorVisible] = useState(false);
+  const [scanErrorMsg, setScanErrorMsg] = useState('');
 
   const confirmDelete = (expense: GroupExpense) => {
     Alert.alert('Delete Item', `Remove "${expense.itemName}"?`, [
@@ -323,6 +328,39 @@ export default function GroupScreen({ navigation, route }: Props) {
       setAddPaymentVisible(false);
     } finally {
       setAddPaymentSubmitting(false);
+    }
+  };
+
+  const handleSourcePick = async (source: 'camera' | 'gallery') => {
+    setSourcePickerVisible(false);
+    try {
+      const result = await scanner.pickAndScan(source);
+      if (!result) return;
+
+      const storePrefix = result.storeName?.trim()
+        ? `${result.storeName.trim().toLowerCase()}-`
+        : '';
+
+      const scanItems: ScanItem[] = result.items.map((item) => ({
+        prefillName: `${storePrefix}${item.name.toLowerCase()}`,
+        price: item.price,
+      }));
+
+      navigation.navigate('AddItem', {
+        groupId,
+        prefillName: scanItems[0].prefillName,
+        prefillPrice: scanItems[0].price,
+        scanItems,
+        scanIndex: 0,
+      });
+    } catch (e) {
+      if (e instanceof InvalidReceiptError) {
+        setScanErrorMsg('Please upload a valid receipt. Make sure the image shows item names and prices.');
+        setScanErrorVisible(true);
+      } else if (e instanceof ParseFailureError) {
+        setScanErrorMsg('Please upload a clearer picture of your receipt so the items can be read properly.');
+        setScanErrorVisible(true);
+      }
     }
   };
 
@@ -428,7 +466,10 @@ export default function GroupScreen({ navigation, route }: Props) {
         />
       )}
 
-      <FAB onPress={vm.activeTab === 'expenses' ? vm.navigateToAddItem : () => setAddPaymentVisible(true)} />
+      <FAB
+        onPress={vm.activeTab === 'expenses' ? vm.navigateToAddItem : () => setAddPaymentVisible(true)}
+        onCameraPress={vm.activeTab === 'expenses' ? () => setSourcePickerVisible(true) : undefined}
+      />
 
       {/* Share Modal */}
       <Modal visible={vm.shareModalVisible} transparent animationType="fade" onRequestClose={vm.closeShareModal}>
@@ -472,6 +513,71 @@ export default function GroupScreen({ navigation, route }: Props) {
           onClose={() => setAddPaymentVisible(false)}
         />
       )}
+
+      {/* Source Picker Modal */}
+      <Modal visible={sourcePickerVisible} transparent animationType="slide" onRequestClose={() => setSourcePickerVisible(false)}>
+        <Pressable style={styles.addPayModalOverlay} onPress={() => setSourcePickerVisible(false)}>
+          <Pressable style={[styles.addPaySheet, { backgroundColor: colors.surface }]} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>Scan Receipt</Text>
+            <Text style={[styles.sheetStep, { color: colors.textSecondary }]}>Choose image source</Text>
+            <TouchableOpacity
+              style={[styles.memberPickRow, { borderColor: colors.border }]}
+              onPress={() => handleSourcePick('camera')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.memberPickAvatar, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="camera-outline" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.memberPickName, { color: colors.text }]}>Take Photo</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.border} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.memberPickRow, { borderColor: colors.border }]}
+              onPress={() => handleSourcePick('gallery')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.memberPickAvatar, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="image-outline" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.memberPickName, { color: colors.text }]}>Choose from Gallery</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.border} />
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Scan Loader Modal */}
+      <Modal visible={scanner.loading} transparent animationType="fade">
+        <View style={styles.loaderOverlay}>
+          <View style={[styles.loaderCard, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loaderTitle, { color: colors.text }]}>Scanning receipt…</Text>
+            <Text style={[styles.loaderSub, { color: colors.textSecondary }]}>
+              This is AI and can make mistakes
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Scan Error Modal */}
+      <Modal visible={scanErrorVisible} transparent animationType="fade" onRequestClose={() => setScanErrorVisible(false)}>
+        <Pressable style={styles.loaderOverlay} onPress={() => setScanErrorVisible(false)}>
+          <View style={[styles.loaderCard, { backgroundColor: colors.surface }]}>
+            <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
+            <Text style={[styles.loaderTitle, { color: colors.text }]}>Invalid Receipt</Text>
+            <Text style={[styles.loaderSub, { color: colors.textSecondary }]}>
+              {scanErrorMsg}
+            </Text>
+            <TouchableOpacity
+              style={[styles.submitBtn, { backgroundColor: colors.primary, marginTop: 16, paddingHorizontal: 24 }]}
+              onPress={() => setScanErrorVisible(false)}
+            >
+              <Text style={styles.submitBtnText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -606,4 +712,19 @@ const styles = StyleSheet.create({
   submitBtn: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   dateFieldWrap: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, marginBottom: 16, borderStyle: 'solid' },
+  loaderOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  loaderCard: {
+    width: 280,
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loaderTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  loaderSub: { fontSize: 13, textAlign: 'center', lineHeight: 18 },
 });

@@ -58,9 +58,13 @@ function Divider() {
 }
 
 export default function AddItemScreen({ navigation, route }: Props) {
-  const { groupId, expenseId } = route.params;
+  const { groupId, expenseId, prefillName, prefillPrice, scanItems, scanIndex } = route.params;
   const colors = useAppTheme();
-  const vm = useAddItemViewModel(navigation, groupId, expenseId);
+  const vm = useAddItemViewModel(navigation, groupId, expenseId, prefillName, prefillPrice, scanItems, scanIndex);
+
+  const isScanMode = !!scanItems && scanItems.length > 0;
+  const scanTotal = scanItems?.length ?? 0;
+  const scanCurrent = (scanIndex ?? 0) + 1;
 
   const taxOptions = [
     { label: 'No Tax', value: 0 },
@@ -78,7 +82,7 @@ export default function AddItemScreen({ navigation, route }: Props) {
             <Text style={[styles.headerCancel, { color: colors.danger }]}>Cancel</Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            {vm.isEditing ? 'Edit Expense' : 'Add Expense'}
+            {vm.isEditing ? 'Edit Expense' : isScanMode ? `Item ${scanCurrent} of ${scanTotal}` : 'Add Expense'}
           </Text>
           <TouchableOpacity onPress={vm.save} style={styles.headerSide} disabled={!vm.canSave || vm.loading}>
             <Text style={[styles.headerSave, { color: vm.canSave && !vm.loading ? colors.primary : colors.textSecondary }]}>
