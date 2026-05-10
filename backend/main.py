@@ -2,6 +2,10 @@
 # Starts a FastAPI app, applies CORS so the React Native app can call it
 # from any origin (fine for local dev), then mounts all receipt routes.
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
