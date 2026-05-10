@@ -7,6 +7,7 @@ export async function validateReceipt(base64: string): Promise<{ is_receipt: boo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image_base64: base64 }),
   });
+  if (res.status === 429) throw new Error('RATE_LIMIT');
   if (!res.ok) throw new Error(`Validate failed: ${res.status}`);
   return res.json();
 }
@@ -19,6 +20,7 @@ export async function extractReceipt(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image_base64: base64 }),
   });
+  if (res.status === 429) throw new Error('RATE_LIMIT');
   if (!res.ok) throw new Error(`Extract failed: ${res.status}`);
   return res.json();
 }

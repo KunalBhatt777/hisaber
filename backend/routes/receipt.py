@@ -5,6 +5,7 @@
 
 import logging
 from fastapi import APIRouter, HTTPException
+from httpx import HTTPStatusError
 
 from models.receipt import ValidateRequest, ExtractRequest, ValidationResult, ReceiptExtraction
 from services.mistral_service import validate_chain, extract_chain
@@ -28,6 +29,11 @@ async def validate_receipt(body: ValidateRequest) -> ValidationResult:
         # validate_prompt | mistral-small-2603 | StrOutputParser
         result: str = await validate_chain.ainvoke({"image_base64": body.image_base64})
         return ValidationResult(is_receipt=result.strip().upper() == "YES")
+    except HTTPStatusError as e:
+        if e.response.status_code == 429:
+            raise HTTPException(status_code=429, detail="Mistral rate limit exceeded. Please try again in a moment.")
+        logger.exception("validate_receipt failed")
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         logger.exception("validate_receipt failed")
         raise HTTPException(status_code=500, detail=str(e))
@@ -46,6 +52,11 @@ async def extract_receipt(body: ExtractRequest) -> ReceiptExtraction:
         # extract_prompt | mistral-small-2603.with_structured_output(ReceiptExtraction)
         result: ReceiptExtraction = await extract_chain.ainvoke({"image_base64": body.image_base64})
         return result
+    except HTTPStatusError as e:
+        if e.response.status_code == 429:
+            raise HTTPException(status_code=429, detail="Mistral rate limit exceeded. Please try again in a moment.")
+        logger.exception("extract_receipt failed")
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         logger.exception("extract_receipt failed")
         raise HTTPException(status_code=500, detail=str(e))

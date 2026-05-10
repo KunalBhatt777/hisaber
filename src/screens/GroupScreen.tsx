@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAppTheme } from '../theme';
 import { useGroupViewModel } from '../viewmodels/useGroupViewModel';
-import { useReceiptScannerViewModel, InvalidReceiptError, ParseFailureError } from '../viewmodels/useReceiptScannerViewModel';
+import { useReceiptScannerViewModel, InvalidReceiptError, ParseFailureError, RateLimitError } from '../viewmodels/useReceiptScannerViewModel';
 import FAB from '../components/FAB';
 import DateTimeField from '../components/DateTimeField';
 import { GroupExpense, GroupPayment, HomeStackParamList, ScanItem } from '../types';
@@ -359,6 +359,9 @@ export default function GroupScreen({ navigation, route }: Props) {
         setScanErrorVisible(true);
       } else if (e instanceof ParseFailureError) {
         setScanErrorMsg('Please upload a clearer picture of your receipt so the items can be read properly.');
+        setScanErrorVisible(true);
+      } else if (e instanceof RateLimitError) {
+        setScanErrorMsg('The AI service is busy right now. Please wait a moment and try again.');
         setScanErrorVisible(true);
       }
     }

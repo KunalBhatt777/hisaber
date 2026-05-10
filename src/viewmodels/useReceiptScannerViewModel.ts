@@ -14,6 +14,12 @@ export class ParseFailureError extends Error {
   }
 }
 
+export class RateLimitError extends Error {
+  constructor() {
+    super('Rate limit exceeded');
+  }
+}
+
 export interface ScanResult {
   storeName: string;
   items: Array<{ name: string; price: number }>;
@@ -54,9 +60,14 @@ export function useReceiptScannerViewModel() {
       try {
         const extraction = await extractReceipt(base64);
         return { storeName: extraction.store_name, items: extraction.items };
-      } catch {
+      } catch (innerErr) {
+        if (innerErr instanceof Error && innerErr.message === 'RATE_LIMIT') throw new RateLimitError();
         throw new ParseFailureError();
       }
+    } catch (e) {
+      if (e instanceof InvalidReceiptError || e instanceof ParseFailureError || e instanceof RateLimitError) throw e;
+      if (e instanceof Error && e.message === 'RATE_LIMIT') throw new RateLimitError();
+      throw e;
     } finally {
       setLoading(false);
     }
