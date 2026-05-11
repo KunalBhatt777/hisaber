@@ -25,7 +25,7 @@ load_dotenv()
 # Single shared LLM instance reused by both chains.
 # mistral-small-2603 supports vision (image input).
 _llm = ChatMistralAI(
-    model="mistral-small-latest",
+    model=os.environ.get("MISTRAL_MODEL", "mistral-small-latest"),
     api_key=os.environ["MISTRAL_API_KEY"],
 )
 
