@@ -47,6 +47,8 @@ export interface AddItemViewModel {
   setPaidByUid: (uid: string) => void;
   save: () => Promise<void>;
   cancel: () => void;
+  discardItem: () => void;
+  discardAll: () => void;
 }
 
 export function useAddItemViewModel(
@@ -237,6 +239,24 @@ export function useAddItemViewModel(
 
   const cancel = useCallback(() => navigation.goBack(), [navigation]);
 
+  const discardItem = useCallback(() => {
+    if (scanItems && scanIndex !== undefined && scanIndex < scanItems.length - 1) {
+      const nextIndex = scanIndex + 1;
+      const next = scanItems[nextIndex];
+      navigation.replace('AddItem', {
+        groupId,
+        prefillName: next.prefillName,
+        prefillPrice: next.price,
+        scanItems,
+        scanIndex: nextIndex,
+      });
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, groupId, scanItems, scanIndex]);
+
+  const discardAll = useCallback(() => navigation.goBack(), [navigation]);
+
   return {
     isEditing: !!expenseId,
     loading,
@@ -244,6 +264,6 @@ export function useAddItemViewModel(
     isLiquor, liquorStateTax, liquorCountyTax, members, selectedMemberUids, paidByUid, expenseDate,
     quantityNum, effectiveTaxRate, taxAmount, liquorTaxAmount, totalPrice, splitCount, perPerson, canSave,
     setItemName, setRawPrice, setQuantity, selectTax, setCustomTax,
-    toggleLiquor, setLiquorStateTax, setLiquorCountyTax, toggleMember, setPaidByUid, setExpenseDate, save, cancel,
+    toggleLiquor, setLiquorStateTax, setLiquorCountyTax, toggleMember, setPaidByUid, setExpenseDate, save, cancel, discardItem, discardAll,
   };
 }

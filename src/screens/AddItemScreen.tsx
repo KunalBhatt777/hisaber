@@ -10,6 +10,7 @@ import {
   Platform,
   Switch,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -78,8 +79,23 @@ export default function AddItemScreen({ navigation, route }: Props) {
 
         {/* ── Header ────────────────────────────────────────────────────── */}
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={vm.cancel} style={styles.headerSide}>
-            <Text style={[styles.headerCancel, { color: colors.danger }]}>Cancel</Text>
+          <TouchableOpacity
+            onPress={() => {
+              if (isScanMode) {
+                Alert.alert('Remove Item', 'What would you like to do?', [
+                  { text: 'Keep Editing', style: 'cancel' },
+                  { text: 'Skip This Item', onPress: vm.discardItem },
+                  { text: 'Discard All', style: 'destructive', onPress: vm.discardAll },
+                ]);
+              } else {
+                vm.cancel();
+              }
+            }}
+            style={styles.headerSide}
+          >
+            <Text style={[styles.headerCancel, { color: colors.danger }]}>
+              {isScanMode ? 'Discard' : 'Cancel'}
+            </Text>
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             {vm.isEditing ? 'Edit Expense' : isScanMode ? `Item ${scanCurrent} of ${scanTotal}` : 'Add Expense'}

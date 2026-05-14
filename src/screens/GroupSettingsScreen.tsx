@@ -47,6 +47,8 @@ export default function GroupSettingsScreen({ route }: Props) {
   const vm = useGroupSettingsViewModel(groupId);
   const currentUid = auth.currentUser?.uid ?? '';
 
+  const isAdmin = vm.group?.createdBy === currentUid;
+
   const canAddTax = (() => {
     const parsed = parseFloat(vm.newTaxValue.trim());
     return !isNaN(parsed) && parsed > 0 && parsed <= 100;
@@ -194,10 +196,19 @@ export default function GroupSettingsScreen({ route }: Props) {
                     <View style={styles.memberRow}>
                       <Avatar name={m.displayName} />
                       <View style={styles.memberInfo}>
-                        <Text style={[styles.memberName, { color: colors.text }]}>{m.displayName}</Text>
+                        <View style={styles.memberNameRow}>
+                          <Text style={[styles.memberName, { color: colors.text }]}>{m.displayName}</Text>
+                          {uid === vm.group?.createdBy && (
+                            <View style={[styles.adminBadge, { backgroundColor: colors.primaryLight }]}>
+                              <Text style={[styles.adminBadgeText, { color: colors.primary }]}>Admin</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={[styles.memberHandle, { color: colors.textSecondary }]}>@{m.username}</Text>
                       </View>
-                      {uid !== currentUid ? (
+                      {uid === currentUid ? (
+                        <Text style={[styles.youTag, { color: colors.primary }]}>You</Text>
+                      ) : isAdmin ? (
                         <TouchableOpacity
                           onPress={() => confirmRemoveMember(uid, m.displayName)}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -205,9 +216,7 @@ export default function GroupSettingsScreen({ route }: Props) {
                         >
                           <Ionicons name="remove-circle-outline" size={22} color={vm.saving ? colors.border : colors.danger} />
                         </TouchableOpacity>
-                      ) : (
-                        <Text style={[styles.youTag, { color: colors.primary }]}>You</Text>
-                      )}
+                      ) : null}
                     </View>
                     {index < members.length - 1 && (
                       <View style={[styles.separator, { backgroundColor: colors.separator, marginLeft: 60 }]} />
@@ -216,8 +225,8 @@ export default function GroupSettingsScreen({ route }: Props) {
                 ))}
               </View>
 
-              {/* Add friends section */}
-              {vm.friends.length > 0 && (
+              {/* Add friends section — admin only */}
+              {isAdmin && vm.friends.length > 0 && (
                 <>
                   <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>ADD FRIENDS</Text>
                   <View style={[styles.membersCard, { backgroundColor: colors.surface }]}>
@@ -305,6 +314,9 @@ const styles = StyleSheet.create({
   avatar: { alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   avatarText: { fontSize: 15, fontWeight: '700' },
   memberInfo: { flex: 1 },
+  memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  adminBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  adminBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   memberName: { fontSize: 15, fontWeight: '600' },
   memberHandle: { fontSize: 12, marginTop: 1 },
   youTag: { fontSize: 13, fontWeight: '600' },

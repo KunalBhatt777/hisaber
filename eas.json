@@ -18,7 +18,8 @@
       }
     },
     "production": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "production"
     }
   }
 }

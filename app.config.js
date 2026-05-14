@@ -7,7 +7,13 @@ export default {
     slug: 'centsible',
     version: '1.0.0',
     orientation: 'portrait',
-    owner:'kunalbhatt777',
+    owner: 'kunalbhatt777',
+    updates: {
+      url: 'https://u.expo.dev/058367e4-367d-422e-85b6-1dbd65e0f624',
+    },
+    runtimeVersion: {
+      policy: 'appVersion',
+    },
     icon: './assets/CentsibleLogo.png',
     userInterfaceStyle: 'automatic',
     splash: {
